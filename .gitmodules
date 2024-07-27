@@ -1,0 +1,15 @@
+[submodule "components/cmsis_device_g4"]
+	path = components/cmsis_device_g4
+	url = https://github.com/STMicroelectronics/cmsis_device_g4.git
+[submodule "components/stm32g4xx_hal_driver"]
+	path = components/stm32g4xx_hal_driver
+	url = https://github.com/STMicroelectronics/stm32g4xx_hal_driver.git
+[submodule "components/CMSIS_5"]
+	path = components/CMSIS_5
+	url = https://github.com/ARM-software/CMSIS_5.git
+[submodule "components/FreeRTOS-Kernel"]
+	path = components/FreeRTOS-Kernel
+	url = https://github.com/FreeRTOS/FreeRTOS-Kernel.git
+[submodule "components/tinyusb"]
+	path = components/tinyusb
+	url = https://github.com/sicrisembay/tinyusb.git
