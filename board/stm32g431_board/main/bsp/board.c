@@ -129,7 +129,7 @@ void board_init()
     SysTick->CTRL &= ~1U;   // Explicitly disable systick to prevent its ISR runs before scheduler start
     BoardGpio_Config();
     MX_USB_PCD_Init();
-    CAN_init();
+//    CAN_init();
 
     NVIC_SetPriority(SysTick_IRQn, configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY);
     NVIC_SetPriority(FDCAN1_IT0_IRQn, configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY);

@@ -1,16 +1,13 @@
 /*!
  ******************************************************************************
- * @file           : main.c
+ * @file           : usb_device.h
  * @author         : Sicris Rey Embay
- * @brief          : Main program body
  ******************************************************************************
  */
-#include "FreeRTOS.h"
-#include "bsp/board_api.h"
 
-int main(void)
-{
-	board_init();
-	usb_device_init();
-    vTaskStartScheduler();
-}
+#ifndef USB_DEVICE_H_
+#define USB_DEVICE_H_
+
+void usb_device_init(void);
+
+#endif /* USB_DEVICE_H_ */
