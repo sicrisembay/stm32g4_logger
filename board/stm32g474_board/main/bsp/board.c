@@ -2,6 +2,7 @@
 #include "stdint.h"
 #include "stm32g4xx_hal.h"
 #include "board_api.h"
+#include "lpuart.h"
 
 static PCD_HandleTypeDef hpcd_USB_FS;
 
@@ -67,22 +68,46 @@ static void BoardGpio_Config(void)
 {
     GPIO_InitTypeDef GPIO_InitStruct = {0};
 
-    __HAL_RCC_GPIOA_CLK_ENABLE();   // GREEN and LED use GPIOA
+    /* GPIO Ports Clock Enable */
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+    __HAL_RCC_GPIOB_CLK_ENABLE();
+    __HAL_RCC_GPIOC_CLK_ENABLE();
+    __HAL_RCC_GPIOF_CLK_ENABLE();
 
-    /* Initialize Green LED */
+    /*
+     * LED indicators
+     */
+    /* Green LED */
     HAL_GPIO_WritePin(GREEN_LED_Port, GREEN_LED_Pin, GPIO_PIN_SET);
     GPIO_InitStruct.Pin = GREEN_LED_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     HAL_GPIO_Init(GREEN_LED_Port, &GPIO_InitStruct);
-    /* Initialize Blue LED */
-    HAL_GPIO_WritePin(BLUE_LED_Port, BLUE_LED_Pin, GPIO_PIN_SET);
-    GPIO_InitStruct.Pin = BLUE_LED_Pin;
+    /* Red LED */
+    HAL_GPIO_WritePin(RED_LED_Port, RED_LED_Pin, GPIO_PIN_SET);
+    GPIO_InitStruct.Pin = RED_LED_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-    HAL_GPIO_Init(BLUE_LED_Port, &GPIO_InitStruct);
+    HAL_GPIO_Init(RED_LED_Port, &GPIO_InitStruct);
+
+    /*
+     * SD Card
+     */
+    /* Chip Select */
+    HAL_GPIO_WritePin(SD_CS_Port, SD_CS_Pin, GPIO_PIN_SET);
+    GPIO_InitStruct.Pin = SD_CS_Pin;
+    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_MEDIUM;
+    HAL_GPIO_Init(SD_CS_Port, &GPIO_InitStruct);
+    /* SD Card Detect Input */
+    GPIO_InitStruct.Pin = SD_DETECT_Pin;
+    GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(SD_DETECT_Port, &GPIO_InitStruct);
 }
 
 
@@ -128,6 +153,7 @@ void board_init()
     SystemClock_Config();
     SysTick->CTRL &= ~1U;   // Explicitly disable systick to prevent its ISR runs before scheduler start
     BoardGpio_Config();
+    LPUART_Init();
     MX_USB_PCD_Init();
 //    CAN_init();
 

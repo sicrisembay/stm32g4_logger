@@ -45,6 +45,11 @@
 			<locationURI>PARENT-2-PROJECT_LOC/components/FreeRTOS-Kernel</locationURI>
 		</link>
 		<link>
+			<name>components/FreeRTOS-Plus-CLI</name>
+			<type>2</type>
+			<locationURI>PARENT-2-PROJECT_LOC/components/FreeRTOS-Plus-CLI</locationURI>
+		</link>
+		<link>
 			<name>components/cmsis_device_g4</name>
 			<type>2</type>
 			<locationURI>PARENT-2-PROJECT_LOC/components/cmsis_device_g4</locationURI>

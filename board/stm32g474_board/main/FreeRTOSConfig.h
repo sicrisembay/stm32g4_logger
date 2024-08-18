@@ -73,6 +73,7 @@ extern uint32_t SystemCoreClock;
 #define configUSE_NEWLIB_REENTRANT              0
 #define configENABLE_BACKWARD_COMPATIBILITY     1
 #define configSTACK_ALLOCATION_FROM_SEPARATE_HEAP   0
+#define configCOMMAND_INT_MAX_OUTPUT_SIZE       (512)
 
 #define configSUPPORT_STATIC_ALLOCATION         1
 #define configSUPPORT_DYNAMIC_ALLOCATION        0
@@ -107,7 +108,7 @@ extern uint32_t SystemCoreClock;
 #define INCLUDE_vTaskDelayUntil                1
 #define INCLUDE_vTaskDelay                     1
 #define INCLUDE_xTaskGetSchedulerState         0
-#define INCLUDE_xTaskGetCurrentTaskHandle      0
+#define INCLUDE_xTaskGetCurrentTaskHandle      1
 #define INCLUDE_uxTaskGetStackHighWaterMark    0
 #define INCLUDE_xTaskGetIdleTaskHandle         0
 #define INCLUDE_xTimerGetTimerDaemonTaskHandle 0

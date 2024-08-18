@@ -42,9 +42,13 @@ extern "C" {
 #endif
 
 #define GREEN_LED_Pin       GPIO_PIN_0
-#define GREEN_LED_Port      GPIOA
-#define BLUE_LED_Pin        GPIO_PIN_15
-#define BLUE_LED_Port       GPIOA
+#define GREEN_LED_Port      GPIOB
+#define RED_LED_Pin         GPIO_PIN_1
+#define RED_LED_Port        GPIOB
+#define SD_CS_Pin           GPIO_PIN_4
+#define SD_CS_Port          GPIOA
+#define SD_DETECT_Pin       GPIO_PIN_4
+#define SD_DETECT_Port      GPIOC
 
 //--------------------------------------------------------------------+
 // Board Porting API
