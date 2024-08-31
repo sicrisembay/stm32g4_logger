@@ -78,8 +78,6 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t size)
 {
     static uint32_t old_pos = 0;
-    uint8_t *ptemp;
-    uint32_t i;
     BaseType_t higherPriorityTaskWoken = pdFALSE;
     size_t available = xStreamBufferSpacesAvailable(uart.txStreamHandle);
     size_t nBytesInDmaBuffer;

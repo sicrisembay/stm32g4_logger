@@ -3,6 +3,7 @@
 #include "stm32g4xx_hal.h"
 #include "board_api.h"
 #include "lpuart.h"
+#include "spi/bsp_spi.h"
 
 static PCD_HandleTypeDef hpcd_USB_FS;
 
@@ -154,6 +155,7 @@ void board_init()
     SysTick->CTRL &= ~1U;   // Explicitly disable systick to prevent its ISR runs before scheduler start
     BoardGpio_Config();
     LPUART_Init();
+    BSP_SPI_init();
     MX_USB_PCD_Init();
 //    CAN_init();
 
