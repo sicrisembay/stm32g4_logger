@@ -25,5 +25,6 @@ void LPUART_Init(void);
 int32_t LPUART_Send(uint8_t * buf, const uint32_t len);
 bool LPUART_TxDone(void);
 int32_t LPUART_Receive(uint8_t * buf, const uint32_t len);
+int32_t LPUART_printf(const char * format, ...);
 
 #endif /* BSP_LPUART_H_ */
