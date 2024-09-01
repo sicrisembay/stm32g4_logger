@@ -29,7 +29,7 @@ static void SystemClock_Config(void)
      * in the RCC_OscInitTypeDef structure.
      *
      * HSI RC = 16MHz
-     * SYSCLK = 168MHz
+     * SYSCLK = 160MHz
      *
      * Enable HSI48 for USB
      */
@@ -56,7 +56,7 @@ static void SystemClock_Config(void)
     RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
     RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
     RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
-    RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
+    RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV8; // SPI source 40MHz
 
     if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK) {
         __disable_irq();

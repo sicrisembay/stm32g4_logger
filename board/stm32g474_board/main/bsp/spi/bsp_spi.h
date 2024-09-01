@@ -17,6 +17,7 @@
 #define SPI_ERR_Q_FULL                  (-3)
 #define SPI_ERR_TIMEOUT                 (-4)
 #define SPI_ERR_DMA_TRANSFER_ERROR      (-5)
+#define SPI_ERR_LASTENTRY               (-6)
 
 typedef void (* SPI_ChipSelect)(bool bSelect);
 

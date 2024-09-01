@@ -274,14 +274,6 @@ void BSP_SPI_init(void)
     /*
      * SPI1 GPIO Configuration
      */
-    /* PA4   ------> SPI1_NSS */
-    GPIO_InitStruct.Pin = LL_GPIO_PIN_4;
-    GPIO_InitStruct.Mode = LL_GPIO_MODE_ALTERNATE;
-    GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_LOW;
-    GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
-    GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
-    GPIO_InitStruct.Alternate = LL_GPIO_AF_5;
-    LL_GPIO_Init(GPIOA, &GPIO_InitStruct);
     /* PA5   ------> SPI1_SCK */
     GPIO_InitStruct.Pin = LL_GPIO_PIN_5;
     GPIO_InitStruct.Mode = LL_GPIO_MODE_ALTERNATE;
