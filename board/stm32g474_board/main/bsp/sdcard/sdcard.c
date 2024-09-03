@@ -5,14 +5,18 @@
  *      Author: Sicris Rey Embay
  */
 
+#include "logger_conf.h"
 #include "stdbool.h"
+#include "string.h"
 #include "stm32g4xx_ll_gpio.h"
 #include "stm32g4xx_ll_bus.h"
 #include "FreeRTOS.h"
 #include "task.h"
 #include "semphr.h"
 #include "sdcard.h"
+#include "test_sdcard.h"
 #include "bsp/spi/bsp_spi.h"
+#include "bsp/lpuart.h"
 
 #define SD_PRINT_DEBUG_ENABLE   (1)
 #define SD_PRINTF(x, ...)       (SD_PRINT_DEBUG_ENABLE != 0) ? LPUART_printf(x, ##__VA_ARGS__) : (void)0
@@ -25,10 +29,21 @@
 #define SD_DETECT_Port          GPIOC
 
 #define SD_DEFAULT_TIMEOUT      (100)
+#define SD_WAIT_BUSY_TIMEOUT    (100)
+#define SD_WAIT_TOKEN_TIMEOUT   (200)
 
 static bool bInit = false;
 static SemaphoreHandle_t semHandle = NULL;
 static StaticSemaphore_t semStruct;
+static uint8_t block_data[SDCARD_BLOCK_SIZE];
+
+typedef struct {
+    uint8_t csd_version;
+    uint32_t max_block_count;
+    uint32_t size;              // Card size in Mega-Bytes (MB)
+} SDCARD_T;
+
+static SDCARD_T sdcard = {0};
 
 void SD_ChipSelect(bool bSelect)
 {
@@ -57,27 +72,51 @@ static int8_t SDCARD_ReadR1() {
     int32_t spiRet = SPI_ERR_NONE;
     int32_t status;
     uint8_t r1;
+    BSP_SPI_CLK_T clk;
+    if(bInit) {
+        clk = BSP_SPI_CLK_20MHZ;
+    } else {
+        clk = BSP_SPI_CLK_156KHZ;
+    }
+    /*
+     * Note: command response time (NCR)
+     *   SDC : 0-8 bytes
+     *   MMC : 1-8 bytes
+     */
+    uint32_t ncr = 0;
+    const uint32_t ncrMax = 12; /* NCR + some margin */
     // make sure FF is transmitted during receive
     uint8_t tx = 0xFF;
     for(;;) {
         // clear pending semaphore
         while(pdTRUE == xSemaphoreTake(semHandle, 0));
 
-        spiRet = BSP_SPI_transact(&tx, &r1, 1, SPI_MODE0, NULL, semHandle, &status);
+        tx = 0xFF;
+        spiRet = BSP_SPI_transact(&tx, &r1, 1, SPI_MODE0, NULL, clk, semHandle, &status);
         if(spiRet != SPI_ERR_NONE) {
+            SD_PRINTF("Read R1 Error %d\r\n", __LINE__);
             return (int8_t)spiRet;
         }
 
         if(pdTRUE != xSemaphoreTake(semHandle, SD_DEFAULT_TIMEOUT)) {
+            SD_PRINTF("Read R1 Error %d\r\n", __LINE__);
             return SPI_ERR_TIMEOUT;
         }
         if(status != SPI_ERR_NONE) {
+            SD_PRINTF("Read R1 Error %d\r\n", __LINE__);
             return (int8_t)spiRet;
         }
 
         if((r1 & 0x80) == 0) { // 8th bit alwyas zero, r1 recevied
             ret = r1;
             break;
+        } else {
+            ncr++;
+            if(ncr >= ncrMax) {
+                SD_PRINTF("Read R1 Timeout %d\r\n", __LINE__);
+                return SDCARD_ERR_TIMEOUT;
+            }
+            vTaskDelay(1);
         }
     }
 
@@ -86,61 +125,91 @@ static int8_t SDCARD_ReadR1() {
 
 // data token for CMD9, CMD17, CMD18 and CMD24 are the same
 #define DATA_TOKEN_CMD9  0xFE
+#define DATA_TOKEN_CMD10 0xFE
 #define DATA_TOKEN_CMD17 0xFE
 #define DATA_TOKEN_CMD18 0xFE
 #define DATA_TOKEN_CMD24 0xFE
 #define DATA_TOKEN_CMD25 0xFC
 
-#if 0
-static int SDCARD_WaitDataToken(uint8_t token) {
+
+static int32_t SDCARD_WaitDataToken(uint8_t token)
+{
+    int32_t spiRet = SPI_ERR_NONE;
+    int32_t status;
     uint8_t fb;
     // make sure FF is transmitted during receive
     uint8_t tx = 0xFF;
+    BSP_SPI_CLK_T clk;
+
+    if(bInit) {
+        clk = BSP_SPI_CLK_20MHZ;
+    } else {
+        clk = BSP_SPI_CLK_156KHZ;
+    }
+
+    TickType_t startTime = xTaskGetTickCount();
     for(;;) {
-        HAL_SPI_TransmitReceive(&SDCARD_SPI_PORT, &tx, &fb, sizeof(fb), HAL_MAX_DELAY);
-        if(fb == token)
-            break;
-
-        if(fb != 0xFF)
-            return -1;
-    }
-    return 0;
-}
-#endif
-
-static int32_t SDCARD_ReadBytes(uint8_t * buff, size_t buff_size) {
-#if 0
-    // make sure FF is transmitted during receive
-    uint8_t tx = 0xFF;
-    while(buff_size > 0) {
-        int32_t status = 0;
-        BSP_SPI_transact(&tx, buff, 1, SPI_MODE0, NULL, semHandle, &status);
+        // clear pending semaphore
+        while(pdTRUE == xSemaphoreTake(semHandle, 0));
+        tx = 0xFF;
+        spiRet = BSP_SPI_transact(&tx, &fb, 1, SPI_MODE0, NULL, clk, semHandle, &status);
+        if(spiRet != SPI_ERR_NONE) {
+            SD_PRINTF("Wait Data Token Error %d\r\n", __LINE__);
+            return (int8_t)spiRet;
+        }
         if(pdTRUE != xSemaphoreTake(semHandle, SD_DEFAULT_TIMEOUT)) {
-            return SDCARD_ERR_TIMEOUT;
+            SD_PRINTF("Wait Data Token Error %d\r\n", __LINE__);
+            return SPI_ERR_TIMEOUT;
         }
-        if(status < 0) {
-            return status;
+        if(status != SPI_ERR_NONE) {
+            SD_PRINTF("Wait Data Token Error %d\r\n", __LINE__);
+            return (int8_t)spiRet;
         }
-        buff++;
-        buff_size--;
+        if(fb == token) {
+            break;
+        }
+        if(fb != 0xFF) {
+            SD_PRINTF("Wait Data Token Error %d\r\n", __LINE__);
+            return SDCARD_ERR_WAIT_DATA_TOKEN;
+        }
+        if((xTaskGetTickCount() - startTime) > SD_WAIT_TOKEN_TIMEOUT) {
+            SD_PRINTF("Wait Data Token Timeout %d\r\n", __LINE__);
+            return SDCARD_ERR_WAIT_DATA_TOKEN;
+        }
     }
-#else
+
+    return SDCARD_ERR_NONE;
+}
+
+
+static int32_t SDCARD_ReadBytes(uint8_t * buff, size_t buff_size)
+{
     int32_t ret = 0;
     int32_t status = 0;
+    BSP_SPI_CLK_T clk;
+
+    if(bInit) {
+        clk = BSP_SPI_CLK_20MHZ;
+    } else {
+        clk = BSP_SPI_CLK_156KHZ;
+    }
+
     memset(buff, 0xFF, buff_size);
     /* clear */
     while(pdTRUE == xSemaphoreTake(semHandle, 0));
-    ret = BSP_SPI_transact(buff, buff, buff_size, SPI_MODE0, NULL, semHandle, &status);
+    ret = BSP_SPI_transact(buff, buff, buff_size, SPI_MODE0, NULL, clk, semHandle, &status);
     if(SPI_ERR_NONE != ret) {
+        SD_PRINTF("Read Bytes Error %d\r\n", __LINE__);
         return ret;
     }
     if(pdTRUE != xSemaphoreTake(semHandle, SD_DEFAULT_TIMEOUT)) {
+        SD_PRINTF("Read Bytes Error %d\r\n", __LINE__);
         return SPI_ERR_TIMEOUT;
     }
     if(status < 0) {
+        SD_PRINTF("Read Bytes Error %d\r\n", __LINE__);
         return status;
     }
-#endif
     return SPI_ERR_NONE;
 }
 
@@ -148,14 +217,53 @@ static int32_t SDCARD_ReadBytes(uint8_t * buff, size_t buff_size) {
 static int32_t SDCARD_WaitNotBusy() {
     uint8_t busy;
     int32_t ret;
+    TickType_t startTime = xTaskGetTickCount();
     do {
         ret = SDCARD_ReadBytes(&busy, sizeof(busy));
         if(ret != SPI_ERR_NONE) {
+            SD_PRINTF("Wait Busy Error %d\r\n", __LINE__);
             return ret;
+        }
+        if((xTaskGetTickCount() - startTime) > SD_WAIT_BUSY_TIMEOUT) {
+            SD_PRINTF("Wait Busy Timeout\r\n");
+            return SDCARD_ERR_TIMEOUT;
         }
     } while(busy != 0xFF);
 
     return SPI_ERR_NONE;
+}
+
+
+static int32_t SDCARD_SendCMD0(void)
+{
+    int32_t ret = SDCARD_ERR_NONE;
+    int32_t status = 0;
+    uint8_t cmd[] =
+        { 0x40 | 0x00 /* CMD0 */, 0x00, 0x00, 0x00, 0x00 /* ARG = 0 */, (0x4A << 1) | 1 /* CRC7 + end bit */ };
+    BSP_SPI_CLK_T clk;
+
+    if(bInit) {
+        clk = BSP_SPI_CLK_20MHZ;
+    } else {
+        clk = BSP_SPI_CLK_156KHZ;
+    }
+
+    while(pdTRUE == xSemaphoreTake(semHandle, 0));
+    ret = BSP_SPI_transact(cmd, cmd, sizeof(cmd), SPI_MODE0, NULL, clk, semHandle, &status);
+
+    if(ret != SPI_ERR_NONE) {
+        SD_PRINTF("CMD0 Error %d\r\n", __LINE__);
+        return ret;
+    }
+    if(pdTRUE != xSemaphoreTake(semHandle, SD_DEFAULT_TIMEOUT)) {
+        SD_PRINTF("CMD0 Error %d\r\n", __LINE__);
+        return SPI_ERR_TIMEOUT;
+    }
+    if(status != SPI_ERR_NONE) {
+        SD_PRINTF("CMD0 Error %d\r\n", __LINE__);
+        return status;
+    }
+    return SDCARD_ERR_NONE;
 }
 
 
@@ -164,16 +272,18 @@ int32_t SDCARD_Init(void)
     int32_t ret = SPI_ERR_NONE;
     int32_t status;
     int8_t r1;
+    uint8_t retry;
 
     /*
      * Note: This must be only called after scheduler has started.
      */
     configASSERT(taskSCHEDULER_NOT_STARTED != xTaskGetSchedulerState());
 
+    TEST_SDCARD_Init();
+
     LL_GPIO_InitTypeDef GPIO_InitStruct = {0};
 
     if(bInit == true) {
-        SD_PRINTF("SD Init Error %d\r\n", __LINE__);
         return SDCARD_ERR_NONE;
     }
 
@@ -193,6 +303,8 @@ int32_t SDCARD_Init(void)
     GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
     LL_GPIO_Init(SD_CS_Port, &GPIO_InitStruct);
     SD_ChipSelect(false);
+
+#if CONFIG_SDCARD_HAS_DETECT_PIN
     /*
      * SD Card Detect
      */
@@ -201,11 +313,21 @@ int32_t SDCARD_Init(void)
     GPIO_InitStruct.Mode = LL_GPIO_MODE_INPUT;
     GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
     LL_GPIO_Init(SD_DETECT_Port, &GPIO_InitStruct);
-    if((LL_GPIO_ReadInputPort(SD_DETECT_Port) & SD_DETECT_Pin) == 0) {
-        /* Card not detected.  Hot plug is not supported */
-        SD_PRINTF("SD Init Error %d\r\n", __LINE__);
-        return SDCARD_ERR_NOT_PRESENT;
+    retry = 0;
+    while(1) {
+        if((LL_GPIO_ReadInputPort(SD_DETECT_Port) & SD_DETECT_Pin) == 0) {
+            retry++;
+            vTaskDelay(10);
+            if(retry >= 10) {
+                /* Card not detected.  Hot plug is not supported */
+                SD_PRINTF("SD Card not preset\r\n");
+                return SDCARD_ERR_NOT_PRESENT;
+            }
+        } else {
+            break;
+        }
     }
+#endif /* CONFIG_SDCARD_HAS_DETECT_PIN */
     /*
      * Semaphore for synchronization
      */
@@ -213,9 +335,9 @@ int32_t SDCARD_Init(void)
     configASSERT(NULL != semHandle);
     /*
      * Step 0.
-     *   Wait for at least 1ms
+     *   Add delay to make sure the 3.3V has stabilized
      */
-    vTaskDelay(2/portTICK_PERIOD_MS);
+    vTaskDelay(200/portTICK_PERIOD_MS);
     /*
      * Step 1.
      *   Set DI and CS high and apply 74 or more clock pulses to SCLK. Without this
@@ -224,11 +346,11 @@ int32_t SDCARD_Init(void)
     */
     SD_ChipSelect(false);  // CS unselect
     {
-        // 80 clock pulses
-        uint8_t dummy[10] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-                0xFF, 0xFF};
+        // 96 clock pulses
+        uint8_t dummy[12] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+                0xFF, 0xFF, 0xFF, 0xFF};
         while(pdTRUE == xSemaphoreTake(semHandle, 0));
-        ret = BSP_SPI_transact(dummy, dummy, 10, SPI_MODE0, NULL, semHandle, &status);
+        ret = BSP_SPI_transact(dummy, dummy, sizeof(dummy), SPI_MODE0, NULL, BSP_SPI_CLK_156KHZ, semHandle, &status);
         if(ret != SPI_ERR_NONE) {
             SD_PRINTF("SD Init Error %d\r\n", __LINE__);
             return ret;
@@ -242,36 +364,29 @@ int32_t SDCARD_Init(void)
     /*
      * Step 2.
      *   Send CMD0 (GO_IDLE_STATE): Reset the SD card.
-    */
+     *     To enter SPI mode, CMD0 needs to be sent twice (see figure 4-1 in
+     *     SD Simplified spec v4.10). Some cards enter SD mode on first CMD0.
+     */
     SD_ChipSelect(true);
-    ret = SDCARD_WaitNotBusy();
-    if(ret != SPI_ERR_NONE) {
-        SD_ChipSelect(false);
+    /* First CMD0 */
+    ret = SDCARD_SendCMD0();
+    if(SDCARD_ERR_NONE != ret) {
         SD_PRINTF("SD Init  Error %d\r\n", __LINE__);
+        SD_ChipSelect(false);
         return ret;
     }
-    {
-        uint8_t cmd[] =
-            { 0x40 | 0x00 /* CMD0 */, 0x00, 0x00, 0x00, 0x00 /* ARG = 0 */, (0x4A << 1) | 1 /* CRC7 + end bit */ };
-        while(pdTRUE == xSemaphoreTake(semHandle, 0));
-        ret = BSP_SPI_transact(cmd, cmd, sizeof(cmd), SPI_MODE0, NULL, semHandle, &status);
-        if(ret != SPI_ERR_NONE) {
-            SD_ChipSelect(false);
-            SD_PRINTF("SD Init  Error %d\r\n", __LINE__);
-            return ret;
-        }
-        if(pdTRUE != xSemaphoreTake(semHandle, SD_DEFAULT_TIMEOUT)) {
-            SD_ChipSelect(false);
-            SD_PRINTF("SD Init  Error %d\r\n", __LINE__);
-            return SPI_ERR_TIMEOUT;
-        }
-        if(status != SPI_ERR_NONE) {
-            SD_ChipSelect(false);
-            SD_PRINTF("SD Init  Error %d\r\n", __LINE__);
-            return status;
-        }
+    r1 = SDCARD_ReadR1();
+    /* Toggle CS */
+    SD_ChipSelect(false);
+    vTaskDelay(1);
+    SD_ChipSelect(true);
+    /* Second CMD0 */
+    ret = SDCARD_SendCMD0();
+    if(SDCARD_ERR_NONE != ret) {
+        SD_PRINTF("SD Init  Error %d\r\n", __LINE__);
+        SD_ChipSelect(false);
+        return ret;
     }
-
     r1 = SDCARD_ReadR1();
     if(r1 < 0) {
         SD_ChipSelect(false);
@@ -281,10 +396,9 @@ int32_t SDCARD_Init(void)
     }
     if(r1 != 0x01) {
         SD_ChipSelect(false);
-        SD_PRINTF("SD Init  Error %d\r\n", __LINE__);
+        SD_PRINTF("SD Init  Error %d (r1: 0x%02x)\r\n", __LINE__, r1);
         return SDCARD_ERR_UNKNOWN_CARD;
     }
-
     /*
      * Step 3.
      *   After the card enters idle state with a CMD0, send a CMD8 with argument of
@@ -305,7 +419,7 @@ int32_t SDCARD_Init(void)
         uint8_t cmd[] =
             { 0x40 | 0x08 /* CMD8 */, 0x00, 0x00, 0x01, 0xAA /* ARG */, (0x43 << 1) | 1 /* CRC7 + end bit */ };
         while(pdTRUE == xSemaphoreTake(semHandle, 0));
-        ret = BSP_SPI_transact(cmd, cmd, sizeof(cmd), SPI_MODE0, NULL, semHandle, &status);
+        ret = BSP_SPI_transact(cmd, cmd, sizeof(cmd), SPI_MODE0, NULL, BSP_SPI_CLK_156KHZ, semHandle, &status);
         if(ret != SPI_ERR_NONE) {
             SD_ChipSelect(false);
             SD_PRINTF("SD Init  Error %d\r\n", __LINE__);
@@ -368,7 +482,7 @@ int32_t SDCARD_Init(void)
             uint8_t cmd[] =
                 { 0x40 | 0x37 /* CMD55 */, 0x00, 0x00, 0x00, 0x00 /* ARG */, (0x7F << 1) | 1 /* CRC7 + end bit */ };
             while(pdTRUE == xSemaphoreTake(semHandle, 0));
-            ret = BSP_SPI_transact(cmd, cmd, sizeof(cmd), SPI_MODE0, NULL, semHandle, &status);
+            ret = BSP_SPI_transact(cmd, cmd, sizeof(cmd), SPI_MODE0, NULL, BSP_SPI_CLK_156KHZ, semHandle, &status);
             if(ret != SPI_ERR_NONE) {
                 SD_ChipSelect(false);
                 SD_PRINTF("SD Init Error %d\r\n", __LINE__);
@@ -408,7 +522,7 @@ int32_t SDCARD_Init(void)
             uint8_t cmd[] =
                 { 0x40 | 0x29 /* ACMD41 */, 0x40, 0x00, 0x00, 0x00 /* ARG */, (0x7F << 1) | 1 /* CRC7 + end bit */ };
             while(pdTRUE == xSemaphoreTake(semHandle, 0));
-            ret = BSP_SPI_transact(cmd, cmd, sizeof(cmd), SPI_MODE0, NULL, semHandle, &status);
+            ret = BSP_SPI_transact(cmd, cmd, sizeof(cmd), SPI_MODE0, NULL, BSP_SPI_CLK_156KHZ, semHandle, &status);
             if(ret != SPI_ERR_NONE) {
                 SD_ChipSelect(false);
                 SD_PRINTF("SD Init Error %d\r\n", __LINE__);
@@ -458,7 +572,7 @@ int32_t SDCARD_Init(void)
         uint8_t cmd[] =
             { 0x40 | 0x3A /* CMD58 */, 0x00, 0x00, 0x00, 0x00 /* ARG */, (0x7F << 1) | 1 /* CRC7 + end bit */ };
         while(pdTRUE == xSemaphoreTake(semHandle, 0));
-        ret = BSP_SPI_transact(cmd, cmd, sizeof(cmd), SPI_MODE0, NULL, semHandle, &status);
+        ret = BSP_SPI_transact(cmd, cmd, sizeof(cmd), SPI_MODE0, NULL, BSP_SPI_CLK_156KHZ, semHandle, &status);
         if(ret != SPI_ERR_NONE) {
             SD_ChipSelect(false);
             SD_PRINTF("SD Init Error %d\r\n", __LINE__);
@@ -510,8 +624,30 @@ int32_t SDCARD_Init(void)
     }
 
     SD_ChipSelect(false);
-
     bInit = true;
+
+    /*
+     * Get SD Card Information
+     */
+    ret = SDCARD_ReadCardSpecificData(block_data, SDCARD_CSD_DATA_SIZE);
+    if(ret != SDCARD_ERR_NONE) {
+        SD_PRINTF("CSD Error %d\r\n", __LINE__);
+        return ret;
+    }
+    // check READ_BL_LEN
+    if((block_data[5] & 0x0F) != 0x09) {
+        SD_PRINTF("READ_BL_LEN != 512 Byte\r\n");
+        return SDCARD_ERR_UNSUPPORTED;
+    }
+    // check WRITE_BL_LEN
+    if(((block_data[13] >> 6) + ((block_data[12] & 0x03) << 2)) != 0x09) {
+        SD_PRINTF("WRITE_BL_LEN != 512 Byte\r\n");
+        return SDCARD_ERR_UNSUPPORTED;
+    }
+    sdcard.csd_version = (block_data[0] >> 6) & 0x03;
+    sdcard.max_block_count = block_data[9] + ((uint32_t)block_data[8] << 8) +
+            ((uint32_t)(block_data[7] & 0x3F) << 16);
+    sdcard.size = ((sdcard.max_block_count + 1) * 512) / 1024;
 
     return SDCARD_ERR_NONE;
 }
@@ -572,15 +708,263 @@ int SDCARD_GetBlocksNumber(uint32_t* num) {
 
     return 0;
 }
+#endif
 
-int SDCARD_ReadSingleBlock(uint32_t blockNum, uint8_t* buff) {
+
+int32_t SDCARD_ReadOCR(uint32_t * pOCR)
+{
+    int32_t ret = SPI_ERR_NONE;
+    int32_t status;
+    int8_t r1;
+
+    if(bInit != true) {
+        return SDCARD_ERR_NOT_INITIALIZED;
+    }
+
+    SD_ChipSelect(true);
+
+    ret = SDCARD_WaitNotBusy();
+    if(ret != SPI_ERR_NONE) {
+        SD_ChipSelect(false);
+        SD_PRINTF("SD Read OCR Error %d\r\n", __LINE__);
+        return ret;
+    }
+    /* CMD58 (READ_OCR) command */
+    uint8_t cmd[] = {
+            0x40 | 0x3A /* CMD58 */,
+            0x00, 0x00, 0x00, 0x00 /* ARG */,
+            (0x7F << 1) | 1 /* CRC7 + end bit */
+    };
+    while(pdTRUE == xSemaphoreTake(semHandle, 0));
+    ret = BSP_SPI_transact(cmd, cmd, sizeof(cmd), SPI_MODE0, NULL, BSP_SPI_CLK_20MHZ, semHandle, &status);
+    if(ret != SPI_ERR_NONE) {
+        SD_ChipSelect(false);
+        SD_PRINTF("SD Read OCR Error %d\r\n", __LINE__);
+        return ret;
+    }
+    if(pdTRUE != xSemaphoreTake(semHandle, SD_DEFAULT_TIMEOUT)) {
+        SD_ChipSelect(false);
+        SD_PRINTF("SD Read OCR Error %d\r\n", __LINE__);
+        return SPI_ERR_TIMEOUT;
+    }
+    if(status != SPI_ERR_NONE) {
+        SD_ChipSelect(false);
+        SD_PRINTF("SD Read OCR Error %d\r\n", __LINE__);
+        return status;
+    }
+    r1 = SDCARD_ReadR1();
+    if(r1 < 0) {
+        SD_ChipSelect(false);
+        ret = r1;
+        SD_PRINTF("SD Read OCR Error %d\r\n", __LINE__);
+        return ret;
+    }
+    if(r1 != 0x00) {
+        SD_ChipSelect(false);
+        SD_PRINTF("SD Read OCR Error %d\r\n", __LINE__);
+        return SDCARD_ERR_R1;
+    }
+    {
+        uint8_t buff[4];
+        ret = SDCARD_ReadBytes(buff, sizeof(buff));
+        if(ret != SPI_ERR_NONE) {
+            SD_ChipSelect(false);
+            SD_PRINTF("SD Read OCR Error %d\r\n", __LINE__);
+            return ret;
+        }
+        if(pOCR != NULL) {
+            *pOCR = (((uint32_t)buff[0]) << 24) +
+                    (((uint32_t)buff[1]) << 16) +
+                    (((uint32_t)buff[2]) << 8) +
+                    ((uint32_t)buff[3]);
+        }
+
+    }
+
+    SD_ChipSelect(false);
+    return SDCARD_ERR_NONE;
+}
+
+
+int32_t SDCARD_ReadCardIdentification(uint8_t * buff, size_t buffLen)
+{
+    int32_t ret = SPI_ERR_NONE;
+    int32_t status;
+    int8_t r1;
+
+    if((buff == NULL) || (buffLen != SDCARD_CID_DATA_SIZE)) {
+        return SDCARD_ERR_INVALID_ARG;
+    }
+
+    if(bInit != true) {
+        return SDCARD_ERR_NOT_INITIALIZED;
+    }
+
+    SD_ChipSelect(true);
+
+    ret = SDCARD_WaitNotBusy();
+    if(ret != SPI_ERR_NONE) {
+        SD_ChipSelect(false);
+        SD_PRINTF("SD Read CID Error %d\r\n", __LINE__);
+        return ret;
+    }
+
+    /* CMD10 (SEND_CID) command */
+    uint8_t cmd[] = {
+        0x40 | 0x0A /* CMD10 */,
+        0x00, 0x00, 0x00, 0x00, /* ARG */
+        (0x7F << 1) | 1 /* CRC7 + end bit */
+    };
+    while(pdTRUE == xSemaphoreTake(semHandle, 0));  // clear any old sem
+    ret = BSP_SPI_transact(cmd, cmd, sizeof(cmd), SPI_MODE0, NULL, BSP_SPI_CLK_20MHZ, semHandle, &status);
+    if(ret != SPI_ERR_NONE) {
+        SD_ChipSelect(false);
+        SD_PRINTF("SD Read CID Error %d\r\n", __LINE__);
+        return ret;
+    }
+    if(pdTRUE != xSemaphoreTake(semHandle, SD_DEFAULT_TIMEOUT)) {
+        SD_ChipSelect(false);
+        SD_PRINTF("SD Read CID Error %d\r\n", __LINE__);
+        return SPI_ERR_TIMEOUT;
+    }
+    if(status != SPI_ERR_NONE) {
+        SD_ChipSelect(false);
+        SD_PRINTF("SD Read CID Error %d\r\n", __LINE__);
+        return status;
+    }
+
+    r1 = SDCARD_ReadR1();
+    if(r1 < 0) {
+        SD_ChipSelect(false);
+        ret = r1;
+        SD_PRINTF("SD Read CID Error %d\r\n", __LINE__);
+        return ret;
+    }
+    if(r1 != 0x00) {
+        SD_ChipSelect(false);
+        SD_PRINTF("SD Read CID Error %d\r\n", __LINE__);
+        return SDCARD_ERR_R1;
+    }
+
+    ret = SDCARD_WaitDataToken(DATA_TOKEN_CMD10);
+    if(ret < 0) {
+        SD_ChipSelect(false);
+        SD_PRINTF("SD Read CID Error %d\r\n", __LINE__);
+        return ret;
+    }
+
+    ret = SDCARD_ReadBytes(buff, SDCARD_CID_DATA_SIZE);
+    if(ret < 0) {
+        SD_ChipSelect(false);
+        SD_PRINTF("SD Read CID Error %d\r\n", __LINE__);
+        return ret;
+    }
+
+    SD_ChipSelect(false);
+    return SDCARD_ERR_NONE;
+}
+
+
+int32_t SDCARD_ReadCardSpecificData(uint8_t * buff, size_t buffLen)
+{
+    int32_t ret = SPI_ERR_NONE;
+    int32_t status;
+    int8_t r1;
+
+    if((buff == NULL) || (buffLen != SDCARD_CSD_DATA_SIZE)) {
+        return SDCARD_ERR_INVALID_ARG;
+    }
+
+    if(bInit != true) {
+        return SDCARD_ERR_NOT_INITIALIZED;
+    }
+
+    SD_ChipSelect(true);
+
+    ret = SDCARD_WaitNotBusy();
+    if(ret != SPI_ERR_NONE) {
+        SD_ChipSelect(false);
+        SD_PRINTF("SD Read CSD Error %d\r\n", __LINE__);
+        return ret;
+    }
+
+    /* CMD9 (SEND_CSD) command */
+    uint8_t cmd[] = {
+        0x40 | 0x09 /* CMD9 */,
+        0x00, 0x00, 0x00, 0x00, /* ARG */
+        (0x7F << 1) | 1 /* CRC7 + end bit */
+    };
+    while(pdTRUE == xSemaphoreTake(semHandle, 0));  // clear any old sem
+    ret = BSP_SPI_transact(cmd, cmd, sizeof(cmd), SPI_MODE0, NULL, BSP_SPI_CLK_20MHZ, semHandle, &status);
+    if(ret != SPI_ERR_NONE) {
+        SD_ChipSelect(false);
+        SD_PRINTF("SD Read CSD Error %d\r\n", __LINE__);
+        return ret;
+    }
+    if(pdTRUE != xSemaphoreTake(semHandle, SD_DEFAULT_TIMEOUT)) {
+        SD_ChipSelect(false);
+        SD_PRINTF("SD Read CSD Error %d\r\n", __LINE__);
+        return SPI_ERR_TIMEOUT;
+    }
+    if(status != SPI_ERR_NONE) {
+        SD_ChipSelect(false);
+        SD_PRINTF("SD Read CSD Error %d\r\n", __LINE__);
+        return status;
+    }
+
+    r1 = SDCARD_ReadR1();
+    if(r1 < 0) {
+        SD_ChipSelect(false);
+        ret = r1;
+        SD_PRINTF("SD Read CSD Error %d\r\n", __LINE__);
+        return ret;
+    }
+    if(r1 != 0x00) {
+        SD_ChipSelect(false);
+        SD_PRINTF("SD Read CSD Error %d\r\n", __LINE__);
+        return SDCARD_ERR_R1;
+    }
+
+    ret = SDCARD_WaitDataToken(DATA_TOKEN_CMD9);
+    if(ret < 0) {
+        SD_ChipSelect(false);
+        SD_PRINTF("SD Read CSD Error %d\r\n", __LINE__);
+        return ret;
+    }
+
+    ret = SDCARD_ReadBytes(buff, SDCARD_CSD_DATA_SIZE);
+    if(ret < 0) {
+        SD_ChipSelect(false);
+        SD_PRINTF("SD Read CSD Error %d\r\n", __LINE__);
+        return ret;
+    }
+
+    SD_ChipSelect(false);
+    return SDCARD_ERR_NONE;}
+
+
+int32_t SDCARD_ReadSingleBlock(uint32_t blockNum, uint8_t * buff, size_t buffLen)
+{
+    int32_t ret = SPI_ERR_NONE;
+    int32_t status;
+    int8_t r1;
     uint8_t crc[2];
 
-    SDCARD_Select();
+    if((buff == NULL) || (buffLen != SDCARD_BLOCK_SIZE)) {
+        return SDCARD_ERR_INVALID_ARG;
+    }
 
-    if(SDCARD_WaitNotBusy() < 0) { // keep this!
-        SDCARD_Unselect();
-        return -1;
+    if(bInit != true) {
+        return SDCARD_ERR_NOT_INITIALIZED;
+    }
+
+    SD_ChipSelect(true);
+
+    ret = SDCARD_WaitNotBusy();
+    if(ret != SPI_ERR_NONE) {
+        SD_ChipSelect(false);
+        SD_PRINTF("SD Read Single Block Error %d\r\n", __LINE__);
+        return ret;
     }
 
     /* CMD17 (SEND_SINGLE_BLOCK) command */
@@ -592,39 +976,85 @@ int SDCARD_ReadSingleBlock(uint32_t blockNum, uint8_t* buff) {
         blockNum & 0xFF,
         (0x7F << 1) | 1 /* CRC7 + end bit */
     };
-    HAL_SPI_Transmit(&SDCARD_SPI_PORT, (uint8_t*)cmd, sizeof(cmd), HAL_MAX_DELAY);
 
-    if(SDCARD_ReadR1() != 0x00) {
-        SDCARD_Unselect();
-        return -2;
+    while(pdTRUE == xSemaphoreTake(semHandle, 0));  // clear any old sem
+    ret = BSP_SPI_transact(cmd, cmd, sizeof(cmd), SPI_MODE0, NULL, BSP_SPI_CLK_20MHZ, semHandle, &status);
+    if(ret != SPI_ERR_NONE) {
+        SD_ChipSelect(false);
+        SD_PRINTF("SD Read Single Block Error %d\r\n", __LINE__);
+        return ret;
+    }
+    if(pdTRUE != xSemaphoreTake(semHandle, SD_DEFAULT_TIMEOUT)) {
+        SD_ChipSelect(false);
+        SD_PRINTF("SD Read Single Block Error %d\r\n", __LINE__);
+        return SPI_ERR_TIMEOUT;
+    }
+    if(status != SPI_ERR_NONE) {
+        SD_ChipSelect(false);
+        SD_PRINTF("SD Read Single Block Error %d\r\n", __LINE__);
+        return status;
     }
 
-    if(SDCARD_WaitDataToken(DATA_TOKEN_CMD17) < 0) {
-        SDCARD_Unselect();
-        return -3;
+    r1 = SDCARD_ReadR1();
+    if(r1 < 0) {
+        SD_ChipSelect(false);
+        ret = r1;
+        SD_PRINTF("SD Read Single Block Error %d\r\n", __LINE__);
+        return ret;
+    }
+    if(r1 != 0x00) {
+        SD_ChipSelect(false);
+        SD_PRINTF("SD Read Single Block Error %d\r\n", __LINE__);
+        return SDCARD_ERR_R1;
     }
 
-    if(SDCARD_ReadBytes(buff, 512) < 0) {
-        SDCARD_Unselect();
-        return -4;
+    ret = SDCARD_WaitDataToken(DATA_TOKEN_CMD17);
+    if(ret < 0) {
+        SD_ChipSelect(false);
+        SD_PRINTF("SD Read Single Block Error %d\r\n", __LINE__);
+        return ret;
     }
 
-    if(SDCARD_ReadBytes(crc, 2) < 0) {
-        SDCARD_Unselect();
-        return -5;
+    ret = SDCARD_ReadBytes(buff, SDCARD_BLOCK_SIZE);
+    if(ret < 0) {
+        SD_ChipSelect(false);
+        SD_PRINTF("SD Read Single Block Error %d\r\n", __LINE__);
+        return ret;
     }
 
-    SDCARD_Unselect();
-    return 0;
+    ret = SDCARD_ReadBytes(crc, 2);
+    if(ret < 0) {
+        SD_ChipSelect(false);
+        SD_PRINTF("SD Read Single Block Error %d\r\n", __LINE__);
+        return ret;
+    }
+
+    SD_ChipSelect(false);
+    return SDCARD_ERR_NONE;
 }
 
 
-int SDCARD_WriteSingleBlock(uint32_t blockNum, const uint8_t* buff) {
-    SDCARD_Select();
+int32_t SDCARD_WriteSingleBlock(uint32_t blockNum, const uint8_t * buff,  size_t buffLen)
+{
+    int32_t ret = SPI_ERR_NONE;
+    int32_t status;
+    int8_t r1;
 
-    if(SDCARD_WaitNotBusy() < 0) { // keep this!
-        SDCARD_Unselect();
-        return -1;
+    if((buff == NULL) || (buffLen != SDCARD_BLOCK_SIZE)) {
+        return SDCARD_ERR_INVALID_ARG;
+    }
+
+    if(bInit != true) {
+        return SDCARD_ERR_NOT_INITIALIZED;
+    }
+
+    SD_ChipSelect(true);
+
+    ret = SDCARD_WaitNotBusy();
+    if(ret != SPI_ERR_NONE) {
+        SD_ChipSelect(false);
+        SD_PRINTF("SD Write Single Block Error %d\r\n", __LINE__);
+        return ret;
     }
 
     /* CMD24 (WRITE_BLOCK) command */
@@ -636,18 +1066,102 @@ int SDCARD_WriteSingleBlock(uint32_t blockNum, const uint8_t* buff) {
         blockNum & 0xFF,
         (0x7F << 1) | 1 /* CRC7 + end bit */
     };
-    HAL_SPI_Transmit(&SDCARD_SPI_PORT, (uint8_t*)cmd, sizeof(cmd), HAL_MAX_DELAY);
 
-    if(SDCARD_ReadR1() != 0x00) {
-        SDCARD_Unselect();
-        return -2;
+    while(pdTRUE == xSemaphoreTake(semHandle, 0));  // clear any old sem
+    ret = BSP_SPI_transact(cmd, cmd, sizeof(cmd), SPI_MODE0, NULL, BSP_SPI_CLK_20MHZ, semHandle, &status);
+    if(ret != SPI_ERR_NONE) {
+        SD_ChipSelect(false);
+        SD_PRINTF("SD Write Single Block Error %d\r\n", __LINE__);
+        return ret;
+    }
+    if(pdTRUE != xSemaphoreTake(semHandle, SD_DEFAULT_TIMEOUT)) {
+        SD_ChipSelect(false);
+        SD_PRINTF("SD Write Single Block Error %d\r\n", __LINE__);
+        return SPI_ERR_TIMEOUT;
+    }
+    if(status != SPI_ERR_NONE) {
+        SD_ChipSelect(false);
+        SD_PRINTF("SD Write Single Block Error %d\r\n", __LINE__);
+        return status;
     }
 
+    r1 = SDCARD_ReadR1();
+    if(r1 < 0) {
+        SD_ChipSelect(false);
+        ret = r1;
+        SD_PRINTF("SD Write Single Block Error %d\r\n", __LINE__);
+        return ret;
+    }
+    if(r1 != 0x00) {
+        SD_ChipSelect(false);
+        SD_PRINTF("SD Write Single Block Error %d\r\n", __LINE__);
+        return SDCARD_ERR_R1;
+    }
+
+    /*
+     * Transmit Data Token (CMD24)
+     */
     uint8_t dataToken = DATA_TOKEN_CMD24;
+    while(pdTRUE == xSemaphoreTake(semHandle, 0));  // clear any old sem
+    ret = BSP_SPI_transact(&dataToken, &dataToken, sizeof(dataToken), SPI_MODE0, NULL, BSP_SPI_CLK_20MHZ, semHandle, &status);
+    if(ret != SPI_ERR_NONE) {
+        SD_ChipSelect(false);
+        SD_PRINTF("SD Write CMD24 Token Error %d\r\n", __LINE__);
+        return ret;
+    }
+    if(pdTRUE != xSemaphoreTake(semHandle, SD_DEFAULT_TIMEOUT)) {
+        SD_ChipSelect(false);
+        SD_PRINTF("SD Write CMD24 Token Timeout %d\r\n", __LINE__);
+        return SPI_ERR_TIMEOUT;
+    }
+    if(status != SPI_ERR_NONE) {
+        SD_ChipSelect(false);
+        SD_PRINTF("SD Write CMD24 Token Error %d\r\n", __LINE__);
+        return status;
+    }
+
+    /*
+     * Transmit block
+     */
+    while(pdTRUE == xSemaphoreTake(semHandle, 0));  // clear any old sem
+    ret = BSP_SPI_transact(buff, block_data, SDCARD_BLOCK_SIZE, SPI_MODE0, NULL, BSP_SPI_CLK_20MHZ, semHandle, &status);
+    if(ret != SPI_ERR_NONE) {
+        SD_ChipSelect(false);
+        SD_PRINTF("SD Write Block Error %d\r\n", __LINE__);
+        return ret;
+    }
+    if(pdTRUE != xSemaphoreTake(semHandle, SD_DEFAULT_TIMEOUT)) {
+        SD_ChipSelect(false);
+        SD_PRINTF("SD Write Block Timeout %d\r\n", __LINE__);
+        return SPI_ERR_TIMEOUT;
+    }
+    if(status != SPI_ERR_NONE) {
+        SD_ChipSelect(false);
+        SD_PRINTF("SD Write Block Error %d\r\n", __LINE__);
+        return status;
+    }
+
+    /*
+     * Transmit crc
+     */
     uint8_t crc[2] = { 0xFF, 0xFF };
-    HAL_SPI_Transmit(&SDCARD_SPI_PORT, &dataToken, sizeof(dataToken), HAL_MAX_DELAY);
-    HAL_SPI_Transmit(&SDCARD_SPI_PORT, (uint8_t*)buff, 512, HAL_MAX_DELAY);
-    HAL_SPI_Transmit(&SDCARD_SPI_PORT, crc, sizeof(crc), HAL_MAX_DELAY);
+    while(pdTRUE == xSemaphoreTake(semHandle, 0));  // clear any old sem
+    ret = BSP_SPI_transact(crc, crc, sizeof(crc), SPI_MODE0, NULL, BSP_SPI_CLK_20MHZ, semHandle, &status);
+    if(ret != SPI_ERR_NONE) {
+        SD_ChipSelect(false);
+        SD_PRINTF("SD Write crc error %d\r\n", __LINE__);
+        return ret;
+    }
+    if(pdTRUE != xSemaphoreTake(semHandle, SD_DEFAULT_TIMEOUT)) {
+        SD_ChipSelect(false);
+        SD_PRINTF("SD Write crc timeout %d\r\n", __LINE__);
+        return SPI_ERR_TIMEOUT;
+    }
+    if(status != SPI_ERR_NONE) {
+        SD_ChipSelect(false);
+        SD_PRINTF("SD Write crc error %d\r\n", __LINE__);
+        return status;
+    }
 
     /*
         dataResp:
@@ -657,21 +1171,30 @@ int SDCARD_WriteSingleBlock(uint32_t blockNum, const uint8_t* buff) {
             110 - Data rejected due to write error
     */
     uint8_t dataResp;
-    SDCARD_ReadBytes(&dataResp, sizeof(dataResp));
+    ret = SDCARD_ReadBytes(&dataResp, sizeof(dataResp));
+    if(ret != SDCARD_ERR_NONE) {
+        SD_ChipSelect(false);
+        SD_PRINTF("SD Write single block error %d\r\n", __LINE__);
+        return ret;
+    }
     if((dataResp & 0x1F) != 0x05) { // data rejected
-        SDCARD_Unselect();
-        return -3;
+        SD_PRINTF("SD Write single block rejected %d\r\n", __LINE__);
+        SD_ChipSelect(false);
+        return SDCARD_ERR_WRITE_REJECTED;
+    }
+    ret = SDCARD_WaitNotBusy();
+    if(ret != SDCARD_ERR_NONE) {
+        SD_ChipSelect(false);
+        SD_PRINTF("SD Write S.ingle Block Error %d\r\n", __LINE__);
+        return ret;
     }
 
-    if(SDCARD_WaitNotBusy() < 0) {
-        SDCARD_Unselect();
-        return -4;
-    }
-
-    SDCARD_Unselect();
-    return 0;
+    SD_ChipSelect(false);
+    return SDCARD_ERR_NONE;
 }
 
+
+#if 0
 int SDCARD_ReadBegin(uint32_t blockNum) {
     SDCARD_Select();
 

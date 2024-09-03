@@ -23,17 +23,27 @@
 #define SPI_MANAGER_TRANSFER_COMPLETE   (0x01UL)
 #define SPI_MANAGER_TRANSFER_ERROR      (0x02UL)
 
+static uint32_t const DEFAULT_SPI_BAUDRATEPRESCALER[N_BSP_SPI_CLK] = {
+    LL_SPI_BAUDRATEPRESCALER_DIV2,
+    LL_SPI_BAUDRATEPRESCALER_DIV4,
+    LL_SPI_BAUDRATEPRESCALER_DIV8,
+    LL_SPI_BAUDRATEPRESCALER_DIV16,
+    LL_SPI_BAUDRATEPRESCALER_DIV32,
+    LL_SPI_BAUDRATEPRESCALER_DIV64,
+    LL_SPI_BAUDRATEPRESCALER_DIV128,
+    LL_SPI_BAUDRATEPRESCALER_DIV256,
+};
+
 typedef struct {
     void * pTxBuf;
     void * pRxBuf;
     size_t len;
-    uint32_t clkFreq;
+    uint32_t br;
     SPI_MODE_T mode;
     SPI_ChipSelect cs;
     SemaphoreHandle_t semRequestor;
     int32_t * pStatus;
 } SPI_TRANSACTION_T;
-
 
 static bool bInit = false;
 static TaskHandle_t taskHandle_SpiManager = NULL;
@@ -95,7 +105,8 @@ static void SPI_ManagerTask(void * pvParam)
     while(1) {
         if(pdTRUE == xQueueReceive(queueHandle_transact, &entry, portMAX_DELAY)) {
             /* Check validity */
-            if((entry.len == 0) || (entry.pTxBuf == NULL) || (entry.pRxBuf == NULL)) {
+            if((entry.len == 0) || (entry.pTxBuf == NULL) ||
+               (entry.pRxBuf == NULL) || (entry.br >= N_BSP_SPI_CLK)) {
                 /* Invalid */
                 if(entry.pStatus != NULL) {
                     *(entry.pStatus) = SPI_ERR_INVALID_ARG;
@@ -106,51 +117,43 @@ static void SPI_ManagerTask(void * pvParam)
                 continue;
             }
 
+            LL_SPI_Disable(SPI1);
             /*
              * Update SPI clock
              */
-            /// Clock freq is fixed for now.
+            LL_SPI_SetBaudRatePrescaler(SPI1, DEFAULT_SPI_BAUDRATEPRESCALER[entry.br]);
             /*
              * Update transaction Mode
              */
             switch(entry.mode) {
                 case SPI_MODE0: {
-                    LL_SPI_Disable(SPI1);
                     LL_SPI_SetClockPolarity(SPI1, LL_SPI_POLARITY_LOW);
                     LL_SPI_SetClockPhase(SPI1, LL_SPI_PHASE_1EDGE);
-                    LL_SPI_Enable(SPI1);
                     break;
                 }
                 case SPI_MODE1: {
-                    LL_SPI_Disable(SPI1);
                     LL_SPI_SetClockPolarity(SPI1, LL_SPI_POLARITY_LOW);
                     LL_SPI_SetClockPhase(SPI1, LL_SPI_PHASE_2EDGE);
-                    LL_SPI_Enable(SPI1);
                     break;
                 }
                 case SPI_MODE2: {
-                    LL_SPI_Disable(SPI1);
                     LL_SPI_SetClockPolarity(SPI1, LL_SPI_POLARITY_HIGH);
                     LL_SPI_SetClockPhase(SPI1, LL_SPI_PHASE_1EDGE);
-                    LL_SPI_Enable(SPI1);
                     break;
                 }
                 case SPI_MODE3: {
-                    LL_SPI_Disable(SPI1);
                     LL_SPI_SetClockPolarity(SPI1, LL_SPI_POLARITY_HIGH);
                     LL_SPI_SetClockPhase(SPI1, LL_SPI_PHASE_2EDGE);
-                    LL_SPI_Enable(SPI1);
                     break;
                 }
                 default: {
                     /* Default to SPI_MODE0 */
-                    LL_SPI_Disable(SPI1);
                     LL_SPI_SetClockPolarity(SPI1, LL_SPI_POLARITY_LOW);
                     LL_SPI_SetClockPhase(SPI1, LL_SPI_PHASE_1EDGE);
-                    LL_SPI_Enable(SPI1);
                     break;
                 }
             }
+            LL_SPI_Enable(SPI1);
             /*
              * Updated transaction data width
              */
@@ -309,7 +312,8 @@ void BSP_SPI_init(void)
     SPI_InitStruct.ClockPolarity = LL_SPI_POLARITY_LOW;
     SPI_InitStruct.ClockPhase = LL_SPI_PHASE_1EDGE;
     SPI_InitStruct.NSS = LL_SPI_NSS_SOFT;
-    SPI_InitStruct.BaudRate = LL_SPI_BAUDRATEPRESCALER_DIV16;
+//    SPI_InitStruct.BaudRate = LL_SPI_BAUDRATEPRESCALER_DIV16;
+    SPI_InitStruct.BaudRate = LL_SPI_BAUDRATEPRESCALER_DIV128;
     SPI_InitStruct.BitOrder = LL_SPI_MSB_FIRST;
     SPI_InitStruct.CRCCalculation = LL_SPI_CRCCALCULATION_DISABLE;
     SPI_InitStruct.CRCPoly = 7;
@@ -352,6 +356,7 @@ int32_t BSP_SPI_transact(void * pTxBuf,
                       size_t length,
                       SPI_MODE_T mode,
                       SPI_ChipSelect cs,
+                      BSP_SPI_CLK_T clk,
                       SemaphoreHandle_t semRequester,
                       int32_t * pStatus)
 {
@@ -359,7 +364,7 @@ int32_t BSP_SPI_transact(void * pTxBuf,
     bool bInsideISR = (pdTRUE == xPortIsInsideInterrupt());
 
     if((pTxBuf == NULL) || (pRxBuf == NULL) ||
-       (length == 0)) {
+       (length == 0) || (clk >= N_BSP_SPI_CLK)) {
         return SPI_ERR_INVALID_ARG;
     }
     entry.pTxBuf = pTxBuf;
@@ -367,6 +372,7 @@ int32_t BSP_SPI_transact(void * pTxBuf,
     entry.len = length;
     entry.mode = mode;
     entry.cs = cs;
+    entry.br = (uint32_t)clk;
     entry.semRequestor = semRequester;
     entry.pStatus = pStatus;
     if(bInsideISR) {

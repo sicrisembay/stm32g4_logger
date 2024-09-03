@@ -95,7 +95,7 @@ static BaseType_t CmdSpiTransact(
         }
 
         while(pdTRUE == xSemaphoreTake(semHandle, 0));
-        int32_t spiRet = BSP_SPI_transact(spiBuffer, spiBuffer, nBytes, mode, NULL, semHandle, &status);
+        int32_t spiRet = BSP_SPI_transact(spiBuffer, spiBuffer, nBytes, mode, NULL, BSP_SPI_CLK_10MHZ, semHandle, &status);
         if(SPI_ERR_NONE != spiRet) {
             snprintf(pcWriteBuffer, xWriteBufferLen, "\tSPI transact return %ld\r\n\r\n", spiRet);
             return 0;
@@ -138,7 +138,7 @@ static BaseType_t CmdSpiTransact(
 static const CLI_Command_Definition_t spi_transact = {
     "spi_transact",
     "spi_transact <mode> <data>:\r\n"
-    "    Send <data> to SPI MOSI and prints MISO data\r\n\r\n",
+    "\tSend <data> to SPI MOSI and prints MISO data\r\n\r\n",
     CmdSpiTransact,
     -1
 };

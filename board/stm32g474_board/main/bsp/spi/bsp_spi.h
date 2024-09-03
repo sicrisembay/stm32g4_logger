@@ -8,8 +8,25 @@
 #ifndef BSP_BSP_SPI_H_
 #define BSP_BSP_SPI_H_
 
+#include "logger_conf.h"
 #include "stdbool.h"
 #include "semphr.h"
+
+#if (CONFIG_APB2_PERIPH_FREQ == 40000000)
+typedef enum {
+    BSP_SPI_CLK_20MHZ = 0,
+    BSP_SPI_CLK_10MHZ,
+    BSP_SPI_CLK_5MHZ,
+    BSP_SPI_CLK_2500KHZ,
+    BSP_SPI_CLK_1250KHZ,
+    BSP_SPI_CLK_625KHZ,
+    BSP_SPI_CLK_312KHZ,
+    BSP_SPI_CLK_156KHZ,
+    N_BSP_SPI_CLK
+} BSP_SPI_CLK_T;
+#else
+#error "APB2 must be 40MHz!"
+#endif
 
 #define SPI_ERR_NONE                    (0)
 #define SPI_ERR_INVALID_ARG             (-1)
@@ -36,6 +53,7 @@ int32_t BSP_SPI_transact(void * pTxBuf,
                       size_t length,
                       SPI_MODE_T mode,
                       SPI_ChipSelect cs,
+                      BSP_SPI_CLK_T clk,
                       SemaphoreHandle_t semRequester,
                       int32_t * pStatus);
 

@@ -1,0 +1,9 @@
+menuconfig USE_SPI
+    bool "SPI"
+    default y
+
+    if USE_SPI
+        config SPI_TEST
+            bool "Test"
+            default y
+    endif # USE_SPI

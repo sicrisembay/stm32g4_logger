@@ -1,0 +1,9 @@
+menuconfig USE_SDCARD
+    depends on USE_SPI
+    bool "SD Card"
+    
+    if USE_SDCARD
+        config SDCARD_HAS_DETECT_PIN
+            bool "Detect Pin"
+            default y
+    endif # USE_SDCARD

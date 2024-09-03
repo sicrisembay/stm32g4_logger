@@ -9,6 +9,7 @@
 #include "task.h"
 #include "bsp/sdcard/sdcard.h"
 #include "bsp/board_api.h"
+#include "bsp/lpuart.h"
 #include "cli.h"
 
 #define MAIN_TASK_STACK_SIZE        (512)
@@ -21,11 +22,25 @@ static void mainTask(void * pvParam)
 {
     int32_t ret;
     TickType_t xLastWakeTime;
+    uint32_t retry = 0;
 
     CLI_init();
-    ret = SDCARD_Init();
-    if(SDCARD_ERR_NONE != ret) {
-        LPUART_printf("SDCARD_Init return %d\r\n", ret);
+    vTaskDelay(100);
+    while(1) {
+        ret = SDCARD_Init();
+        if(SDCARD_ERR_NONE == ret) {
+            LPUART_printf("SDCARD_Init OK\r\n");
+            break;
+        } else {
+            retry++;
+            if(retry < 2) {
+                LPUART_printf("SDCARD_Init return %d\r\nRetrying...\r\n", ret);
+                vTaskDelay(10);
+
+            } else {
+                LPUART_printf("SDCARD_Init failed!\r\n");
+            }
+        }
     }
     //usb_device_init();
 
