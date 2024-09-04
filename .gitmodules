@@ -13,3 +13,7 @@
 [submodule "components/tinyusb"]
 	path = components/tinyusb
 	url = https://github.com/sicrisembay/tinyusb.git
+[submodule "components/filesystem/littlefs"]
+	path = components/filesystem/littlefs
+	url = https://github.com/littlefs-project/littlefs.git
+	branch = master

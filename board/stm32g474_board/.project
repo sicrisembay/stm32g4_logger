@@ -55,6 +55,11 @@
 			<locationURI>PARENT-2-PROJECT_LOC/components/cmsis_device_g4</locationURI>
 		</link>
 		<link>
+			<name>components/littlefs</name>
+			<type>2</type>
+			<locationURI>PARENT-2-PROJECT_LOC/components/filesystem/littlefs</locationURI>
+		</link>
+		<link>
 			<name>components/stm32g4xx_hal_driver</name>
 			<type>2</type>
 			<locationURI>PARENT-2-PROJECT_LOC/components/stm32g4xx_hal_driver</locationURI>

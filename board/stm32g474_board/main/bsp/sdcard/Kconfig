@@ -6,4 +6,35 @@ menuconfig USE_SDCARD
         config SDCARD_HAS_DETECT_PIN
             bool "Detect Pin"
             default y
+        choice
+            prompt "SPI clock frequency"
+            default SDCARD_SPI_FREQ_1250MHZ
+            config SDCARD_SPI_FREQ_20MHZ
+                bool "20MHz"
+            config SDCARD_SPI_FREQ_10MHZ
+                bool "10MHz"
+            config SDCARD_SPI_FREQ_5MHZ
+                bool "5MHz"
+            config SDCARD_SPI_FREQ_2500KHZ
+                bool "2.5MHz"
+            config SDCARD_SPI_FREQ_1250KHZ
+                bool "1.25MHz"
+            config SDCARDSPI_FREQ_625KHZ
+                bool "625kHz"
+            config SDCARD_SPI_FREQ_312KHZ
+                bool "312.5kHz"
+            config SDCARD_SPI_FREQ_156KHZ
+                bool "156.25kHz"
+        endchoice
+        config SDCARD_SPI_FREQ_IDX
+            int
+            default 0 if SDCARD_SPI_FREQ_20MHZ
+            default 1 if SDCARD_SPI_FREQ_10MHZ
+            default 2 if SDCARD_SPI_FREQ_5MHZ
+            default 3 if SDCARD_SPI_FREQ_2500KHZ
+            default 4 if SDCARD_SPI_FREQ_1250KHZ
+            default 5 if SDCARDSPI_FREQ_625KHZ
+            default 6 if SDCARD_SPI_FREQ_312KHZ
+            default 7 if SDCARD_SPI_FREQ_156KHZ
+            default 7
     endif # USE_SDCARD
