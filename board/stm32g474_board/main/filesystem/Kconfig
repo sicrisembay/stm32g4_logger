@@ -1,0 +1,5 @@
+menu "Filesystem"
+    config TEST_LFS_SD
+        bool "Test Commands"
+        default y
+endmenu

@@ -34,6 +34,8 @@
 #include "task.h"
 #include "lpuart.h"
 
+#define LFS_THREADSAFE      1
+
 // Logging functions
 #ifndef LFS_TRACE
 #ifdef LFS_YES_TRACE

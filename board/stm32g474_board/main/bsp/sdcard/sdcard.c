@@ -40,6 +40,7 @@ static uint8_t block_data[SDCARD_BLOCK_SIZE];
 typedef struct {
     uint8_t csd_version;
     uint32_t max_block_count;
+    uint32_t sector_size;       // Size of erasable sector in bytes
     uint32_t size;              // Card size in Mega-Bytes (MB)
 } SDCARD_T;
 
@@ -632,25 +633,50 @@ int32_t SDCARD_Init(void)
     ret = SDCARD_ReadCardSpecificData(block_data, SDCARD_CSD_DATA_SIZE);
     if(ret != SDCARD_ERR_NONE) {
         SD_PRINTF("CSD Error %d\r\n", __LINE__);
+        bInit = false;
         return ret;
     }
     // check READ_BL_LEN
     if((block_data[5] & 0x0F) != 0x09) {
         SD_PRINTF("READ_BL_LEN != 512 Byte\r\n");
+        bInit = false;
         return SDCARD_ERR_UNSUPPORTED;
     }
     // check WRITE_BL_LEN
     if(((block_data[13] >> 6) + ((block_data[12] & 0x03) << 2)) != 0x09) {
         SD_PRINTF("WRITE_BL_LEN != 512 Byte\r\n");
+        bInit = false;
         return SDCARD_ERR_UNSUPPORTED;
     }
+    // check CSD version
     sdcard.csd_version = (block_data[0] >> 6) & 0x03;
+    if(sdcard.csd_version != 0x01) {
+        SD_PRINTF("CSD Version 2.0 not found\r\n");
+        bInit = false;
+        return SDCARD_ERR_UNSUPPORTED;
+    }
     sdcard.max_block_count = block_data[9] + ((uint32_t)block_data[8] << 8) +
             ((uint32_t)(block_data[7] & 0x3F) << 16);
     sdcard.size = ((sdcard.max_block_count + 1) * 512) / 1024;
+    const uint32_t sd_sectorSize = ((block_data[10] & 0x3F) << 1) +
+                                   ((block_data[11] >> 7) & 0x01);
+    // check Sector Size
+    sdcard.sector_size = (sd_sectorSize + 1) * 512;
+    if(sdcard.sector_size != SDCARD_SECTOR_SIZE) {
+        SD_PRINTF("Sector size != 64kB\r\n");
+        bInit = false;
+        return SDCARD_ERR_UNSUPPORTED;
+    }
 
     return SDCARD_ERR_NONE;
 }
+
+
+bool SDCARD_InitDone(void)
+{
+    return bInit;
+}
+
 
 #if 0
 int SDCARD_GetBlocksNumber(uint32_t* num) {
@@ -1356,3 +1382,8 @@ int SDCARD_WriteEnd() {
     return 0;
 }
 #endif
+
+uint32_t SDCARD_GetBlockCount(void)
+{
+    return (sdcard.max_block_count);
+}

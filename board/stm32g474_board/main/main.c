@@ -42,6 +42,8 @@ static void mainTask(void * pvParam)
             }
         }
     }
+    TEST_LFS_Init();
+
     //usb_device_init();
 
     xLastWakeTime = xTaskGetTickCount();

@@ -318,9 +318,9 @@ static BaseType_t CmdSdCardReadOne(
     return 0;
 }
 
-static const CLI_Command_Definition_t sdcard_readOne = {
-    "sd_read_one",
-    "sd_read_one <block address>:\r\n"
+static const CLI_Command_Definition_t sdcard_read = {
+    "sd_read",
+    "sd_read <block address>:\r\n"
     "\tRead one block from SD card\r\n\r\n",
     CmdSdCardReadOne,
     1
@@ -463,7 +463,7 @@ void TEST_SDCARD_Init(void)
     FreeRTOS_CLIRegisterCommand(&sdcard_cid);
     FreeRTOS_CLIRegisterCommand(&sdcard_csd);
     FreeRTOS_CLIRegisterCommand(&sdcard_ocr);
-    FreeRTOS_CLIRegisterCommand(&sdcard_readOne);
+    FreeRTOS_CLIRegisterCommand(&sdcard_read);
     FreeRTOS_CLIRegisterCommand(&sdcard_write);
     bInit = true;
 }

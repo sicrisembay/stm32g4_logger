@@ -9,6 +9,7 @@
 #define BSP_SDCARD_SDCARD_H_
 
 #include "stdint.h"
+#include "stdbool.h"
 #include "bsp/spi/bsp_spi.h"
 
 #define SDCARD_ERR_NONE                 (0)
@@ -24,11 +25,15 @@
 #define SDCARD_ERR_NOT_INITIALIZED      (SPI_ERR_LASTENTRY-8)
 #define SDCARD_ERR_WRITE_REJECTED       (SPI_ERR_LASTENTRY-9)
 
-#define SDCARD_BLOCK_SIZE               (512)
+#define SDCARD_BLOCK_SIZE               (512)   // READ_BL_LEN or
+                                                // WRITE_BL_LEN
+
+#define SDCARD_SECTOR_SIZE              (65536) // 64kB
 #define SDCARD_CID_DATA_SIZE            (16)
 #define SDCARD_CSD_DATA_SIZE            (16)
 
 int32_t SDCARD_Init(void);
+bool SDCARD_InitDone(void);
 int32_t SDCARD_GetBlocksNumber(uint32_t * num);
 int32_t SDCARD_ReadOCR(uint32_t * pOCR);
 int32_t SDCARD_ReadCardIdentification(uint8_t * buff, size_t buffLen);
@@ -45,6 +50,8 @@ int32_t SDCARD_ReadEnd();
 int32_t SDCARD_WriteBegin(uint32_t blockNum);
 int32_t SDCARD_WriteData(const uint8_t * buff); // sizeof(buff) == 512!
 int32_t SDCARD_WriteEnd();
+
+uint32_t SDCARD_GetBlockCount(void);
 
 // TODO: read lock flag? CMD13, SEND_STATUS
 

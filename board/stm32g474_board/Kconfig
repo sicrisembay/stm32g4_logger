@@ -1,3 +1,4 @@
 mainmenu "Logger Configuration"
 
 rsource "main/bsp/Kconfig"
+rsource "main/filesystem/Kconfig"
