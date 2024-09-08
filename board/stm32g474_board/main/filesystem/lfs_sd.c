@@ -222,10 +222,33 @@ int32_t lfs_sd_umount()
     }
 
     if(bMount) {
+        if(bFileOpen) {
+            lfs_sd_fclose();
+        }
         ret = lfs_unmount(&lfs);
         bMount = false;
     }
     return ret;
+}
+
+
+int32_t lfs_sd_df()
+{
+    if(bMount != true) {
+        LFS_SD_PRINTF("Storage device not mounted.\r\n");
+        return LFS_ERR_IO;
+    }
+    return lfs_fs_size(&lfs);
+}
+
+
+int32_t lfs_sd_capacity()
+{
+    if(bMount != true) {
+        LFS_SD_PRINTF("Storage device not mounted.\r\n");
+        return LFS_ERR_IO;
+    }
+    return (cfg.block_count);
 }
 
 

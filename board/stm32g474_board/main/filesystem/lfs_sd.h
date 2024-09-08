@@ -13,6 +13,8 @@
 int32_t lfs_sd_format();
 lfs_t * lfs_sd_mount();
 int32_t lfs_sd_umount();
+int32_t lfs_sd_df();
+int32_t lfs_sd_capacity();
 int32_t lfs_sd_mkdir(const char * path);
 int32_t lfs_sd_ls(const char * path, char * outBuffer, size_t bufferLen);
 

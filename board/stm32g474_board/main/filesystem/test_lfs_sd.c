@@ -98,6 +98,40 @@ static const CLI_Command_Definition_t lfs_cmd_umount = {
 };
 
 
+static BaseType_t FuncLfsCmdDf(
+                char *pcWriteBuffer,
+                size_t xWriteBufferLen,
+                const char *pcCommandString )
+{
+    memset(pcWriteBuffer, 0, xWriteBufferLen);
+
+    const int32_t nAllocBlock = lfs_sd_df();
+    const int32_t nTotalBlock = lfs_sd_capacity();
+    if((nAllocBlock < 0) || (nTotalBlock <= 0)) {
+        snprintf(pcWriteBuffer, xWriteBufferLen,
+                "\tError: lfs_sd_df\r\n\r\n");
+        return 0;
+    }
+    const int32_t nFreeBlock = nTotalBlock - nAllocBlock;
+    const int32_t used = (nAllocBlock * 100) / nTotalBlock;
+    snprintf(pcWriteBuffer, xWriteBufferLen,
+            "\tFree Blocks: %ld\r\n"
+            "\tUsed: %ld/%ld (%ld%%)\r\n\r\n",
+            nFreeBlock,
+            nAllocBlock,
+            nTotalBlock,
+            used);
+    return 0;
+}
+
+static const CLI_Command_Definition_t lfs_cmd_df = {
+    "lfs_df",
+    "lfs_df:\r\n"
+    "\tDisk free space\r\n\r\n",
+    FuncLfsCmdDf,
+    0
+};
+
 static BaseType_t FuncLfsCmdLs(
                 char *pcWriteBuffer,
                 size_t xWriteBufferLen,
@@ -236,6 +270,7 @@ void TEST_LFS_Init(void)
     FreeRTOS_CLIRegisterCommand(&lfs_cmd_format);
     FreeRTOS_CLIRegisterCommand(&lfs_cmd_mount);
     FreeRTOS_CLIRegisterCommand(&lfs_cmd_umount);
+    FreeRTOS_CLIRegisterCommand(&lfs_cmd_df);
     FreeRTOS_CLIRegisterCommand(&lfs_cmd_ls);
     FreeRTOS_CLIRegisterCommand(&lfs_cmd_mkdir);
     FreeRTOS_CLIRegisterCommand(&lfs_cmd_fopen);
