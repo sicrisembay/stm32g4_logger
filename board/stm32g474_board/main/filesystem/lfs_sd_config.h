@@ -35,6 +35,7 @@
 #include "lpuart.h"
 
 #define LFS_THREADSAFE      1
+#define LFS_NAME_MAX        127
 
 // Logging functions
 #ifndef LFS_TRACE

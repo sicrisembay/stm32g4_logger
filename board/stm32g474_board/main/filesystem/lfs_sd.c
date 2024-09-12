@@ -192,6 +192,10 @@ int32_t lfs_sd_format()
     if(bInit != true) {
         lfs_sd_init();
     }
+    if(bMount) {
+        lfs_sd_umount();
+    }
+
     return lfs_format(&lfs, &cfg);
 }
 
@@ -357,25 +361,66 @@ lfs_file_t * lfs_sd_fopen(const char * pathName)
 
 int32_t lfs_sd_fwrite(const char * strData, size_t len)
 {
-    return LFS_ERR_OK;
+    if((NULL == strData) || (len == 0)) {
+        LFS_SD_PRINTF("Error: invalid arg\r\n");
+        return LFS_ERR_INVAL;
+    }
+    if(bMount != true) {
+        LFS_SD_PRINTF("Error: LFS not mounted\r\n");
+        return LFS_ERR_IO;
+    }
+    if(bFileOpen != true) {
+        LFS_SD_PRINTF("Error: File not opened\r\n");
+        return LFS_ERR_IO;
+    }
+    return lfs_file_write(&lfs, &file, strData, len);
 }
 
 
 int32_t lfs_sd_fread(char * outBuffer, size_t bufLen)
 {
-    return LFS_ERR_OK;
+    if((NULL == outBuffer) || (bufLen == 0)) {
+        LFS_SD_PRINTF("Error: invalid arg\r\n");
+        return LFS_ERR_INVAL;
+    }
+    if(bMount != true) {
+        LFS_SD_PRINTF("Error: LFS not mounted\r\n");
+        return LFS_ERR_IO;
+    }
+    if(bFileOpen != true) {
+        LFS_SD_PRINTF("Error: File not opened\r\n");
+        return LFS_ERR_IO;
+    }
+    return lfs_file_read(&lfs, &file, outBuffer, bufLen);
 }
 
 
 int32_t lfs_sd_mv(const char * source, const char * target)
 {
-    return LFS_ERR_OK;
+    if((NULL == source) || (NULL == target)) {
+        LFS_SD_PRINTF("Error: invalid arg\r\n");
+        return LFS_ERR_INVAL;
+    }
+    if(bMount != true) {
+        LFS_SD_PRINTF("Error: LFS not mounted\r\n");
+        return LFS_ERR_IO;
+    }
+
+    return lfs_rename(&lfs, source, target);
 }
 
 
 int32_t lfs_sd_rm(const char * path)
 {
-    return LFS_ERR_OK;
+    if(NULL == path) {
+        LFS_SD_PRINTF("Error: invalid arg\r\n");
+        return LFS_ERR_INVAL;
+    }
+    if(bMount != true) {
+        LFS_SD_PRINTF("Error: LFS not mounted\r\n");
+        return LFS_ERR_IO;
+    }
+    return lfs_remove(&lfs, path);
 }
 
 

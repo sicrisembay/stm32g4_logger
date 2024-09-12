@@ -14,7 +14,7 @@
 #include "cli.h"
 
 #define CLI_TASK_PRIORITY               (1)
-#define CLI_TASK_STACK_SIZE             (512)
+#define CLI_TASK_STACK_SIZE             (1024)
 #define CLI_COMMAND_MAX_INPUT_SIZE      (256)
 #define CLI_COMMAND_MAX_OUTPUT_SIZE     (256)
 

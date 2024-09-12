@@ -20,6 +20,8 @@
 #include "lfs.h"
 #include "lfs_sd.h"
 
+#define LFS_SD_MAX_PATHNAME_LENGTH      (LFS_NAME_MAX)
+
 static bool bInit = false;
 
 static BaseType_t FuncLfsCmdFormat(
@@ -261,6 +263,176 @@ static const CLI_Command_Definition_t lfs_cmd_fclose = {
 };
 
 
+static BaseType_t FuncLfsCmdFwrite(
+                char *pcWriteBuffer,
+                size_t xWriteBufferLen,
+                const char *pcCommandString )
+{
+    char * ptrStrParam;
+    BaseType_t strParamLen;
+
+    memset(pcWriteBuffer, 0, xWriteBufferLen);
+
+    ptrStrParam = (char *) FreeRTOS_CLIGetParameter(pcCommandString, 1, &strParamLen);
+    if(NULL == ptrStrParam) {
+        snprintf(pcWriteBuffer, xWriteBufferLen,
+                "\tNothing to write!\r\n\r\n");
+        return 0;
+    }
+    const size_t len = strlen(ptrStrParam);
+    if(len == lfs_sd_fwrite(ptrStrParam, len)) {
+        snprintf(pcWriteBuffer, xWriteBufferLen, "\tOK\r\n\r\n");
+    } else {
+        snprintf(pcWriteBuffer, xWriteBufferLen, "\tFailed\r\n\r\n");
+    }
+    return 0;
+}
+
+static const CLI_Command_Definition_t lfs_cmd_fwrite = {
+    "lfs_fwrite",
+    "lfs_fwrite <data>:\r\n"
+    "\tAppends <data> to already opened file\r\n\r\n",
+    FuncLfsCmdFwrite,
+    -1
+};
+
+
+static BaseType_t FuncLfsCmdFread(
+                char *pcWriteBuffer,
+                size_t xWriteBufferLen,
+                const char *pcCommandString )
+{
+    memset(pcWriteBuffer, 0, xWriteBufferLen);
+
+    int32_t ret = lfs_sd_fread(pcWriteBuffer, xWriteBufferLen - 4);
+
+    if(ret == 0) {
+        snprintf(pcWriteBuffer, xWriteBufferLen,
+                "\tEmpty File\r\n\r\n");
+    } else if(ret < 0) {
+        snprintf(pcWriteBuffer, xWriteBufferLen,
+                "\tFailed with error %ld\r\n\r\n", ret);
+    } else {
+        strncat(pcWriteBuffer, "\r\n\r\n", xWriteBufferLen);
+    }
+    return 0;
+}
+
+static const CLI_Command_Definition_t lfs_cmd_fread = {
+    "lfs_fread",
+    "lfs_fread:\r\n"
+    "\tReads from already opened file\r\n\r\n",
+    FuncLfsCmdFread,
+    0
+};
+
+static BaseType_t FuncLfsCmdMv(
+                char *pcWriteBuffer,
+                size_t xWriteBufferLen,
+                const char *pcCommandString )
+{
+    char * ptrStrParam;
+    BaseType_t strParamLen;
+    char src[LFS_SD_MAX_PATHNAME_LENGTH];
+    char target[LFS_SD_MAX_PATHNAME_LENGTH];
+
+    memset(pcWriteBuffer, 0, xWriteBufferLen);
+
+    /* Get source name */
+    ptrStrParam = (char *)FreeRTOS_CLIGetParameter(pcCommandString, 1, &strParamLen);
+    if(ptrStrParam == NULL) {
+        snprintf(pcWriteBuffer, xWriteBufferLen,
+                "\tError: Parameter1 not found!\r\n\r\n");
+        return 0;
+    }
+    if(strParamLen > (LFS_SD_MAX_PATHNAME_LENGTH - 1)) {
+        snprintf(pcWriteBuffer, xWriteBufferLen,
+                "\tError: <src> length exceeds %ld\r\n\r\n",
+                LFS_SD_MAX_PATHNAME_LENGTH);
+        return 0;
+    }
+    strncpy(src, ptrStrParam, strParamLen);
+    src[strParamLen] = '\0';
+
+    /* Get target name */
+    ptrStrParam = (char *)FreeRTOS_CLIGetParameter(pcCommandString, 2, &strParamLen);
+    if(ptrStrParam == NULL) {
+        snprintf(pcWriteBuffer, xWriteBufferLen,
+                "\tError: Parameter2 not found!\r\n\r\n");
+        return 0;
+    }
+    if(strParamLen > (LFS_SD_MAX_PATHNAME_LENGTH - 1)) {
+        snprintf(pcWriteBuffer, xWriteBufferLen,
+                "\tError: <target> length exceeds %ld\r\n\r\n",
+                LFS_SD_MAX_PATHNAME_LENGTH);
+        return 0;
+    }
+    strncpy(target, ptrStrParam, strParamLen);
+    target[strParamLen] = '\0';
+
+    if(LFS_ERR_OK == lfs_sd_mv(src, target)) {
+        snprintf(pcWriteBuffer, xWriteBufferLen, "\tOK\r\n\r\n");
+    } else {
+        snprintf(pcWriteBuffer, xWriteBufferLen, "\tFailed\r\n\r\n");
+    }
+
+    return 0;
+}
+
+static const CLI_Command_Definition_t lfs_cmd_mv = {
+    "lfs_mv",
+    "lfs_mv <src> <target>:\r\n"
+    "\tMoves or renames <src> to <target>\r\n\r\n",
+    FuncLfsCmdMv,
+    2
+};
+
+
+static BaseType_t FuncLfsCmdRm(
+                char *pcWriteBuffer,
+                size_t xWriteBufferLen,
+                const char *pcCommandString )
+{
+    char * ptrStrParam;
+    BaseType_t strParamLen;
+    char path[LFS_SD_MAX_PATHNAME_LENGTH];
+
+    memset(pcWriteBuffer, 0, xWriteBufferLen);
+
+    /* Get path name */
+    ptrStrParam = (char *)FreeRTOS_CLIGetParameter(pcCommandString, 1, &strParamLen);
+    if(ptrStrParam == NULL) {
+        snprintf(pcWriteBuffer, xWriteBufferLen,
+                "\tError: Parameter1 not found!\r\n\r\n");
+        return 0;
+    }
+    if(strParamLen > (LFS_SD_MAX_PATHNAME_LENGTH - 1)) {
+        snprintf(pcWriteBuffer, xWriteBufferLen,
+                "\tError: <path> length exceeds %ld\r\n\r\n",
+                LFS_SD_MAX_PATHNAME_LENGTH);
+        return 0;
+    }
+    strncpy(path, ptrStrParam, strParamLen);
+    path[strParamLen] = '\0';
+
+    if(LFS_ERR_OK == lfs_sd_rm(path)) {
+        snprintf(pcWriteBuffer, xWriteBufferLen, "\tOK\r\n\r\n");
+    } else {
+        snprintf(pcWriteBuffer, xWriteBufferLen, "\tFailed\r\n\r\n");
+    }
+
+    return 0;
+}
+
+static const CLI_Command_Definition_t lfs_cmd_rm = {
+    "lfs_rm",
+    "lfs_rm <path>:\r\n"
+    "\tRemoves file or directory specified by <path>\r\n\r\n",
+    FuncLfsCmdRm,
+    1
+};
+
+
 void TEST_LFS_Init(void)
 {
     if(bInit) {
@@ -275,6 +447,10 @@ void TEST_LFS_Init(void)
     FreeRTOS_CLIRegisterCommand(&lfs_cmd_mkdir);
     FreeRTOS_CLIRegisterCommand(&lfs_cmd_fopen);
     FreeRTOS_CLIRegisterCommand(&lfs_cmd_fclose);
+    FreeRTOS_CLIRegisterCommand(&lfs_cmd_fwrite);
+    FreeRTOS_CLIRegisterCommand(&lfs_cmd_fread);
+    FreeRTOS_CLIRegisterCommand(&lfs_cmd_mv);
+    FreeRTOS_CLIRegisterCommand(&lfs_cmd_rm);
 
     bInit = true;
 }
