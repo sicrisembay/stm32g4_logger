@@ -8,6 +8,10 @@
 #ifndef BSP_SDCARD_SDCARD_H_
 #define BSP_SDCARD_SDCARD_H_
 
+#include "logger_conf.h"
+
+#if CONFIG_USE_SDCARD
+
 #include "stdint.h"
 #include "stdbool.h"
 #include "bsp/spi/bsp_spi.h"
@@ -55,4 +59,5 @@ uint32_t SDCARD_GetBlockCount(void);
 
 // TODO: read lock flag? CMD13, SEND_STATUS
 
+#endif /* CONFIG_USE_SDCARD */
 #endif /* BSP_SDCARD_SDCARD_H_ */

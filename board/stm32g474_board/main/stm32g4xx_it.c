@@ -179,9 +179,3 @@ void USBWakeUp_IRQHandler(void) {
 void UCPD1_IRQHandler(void) {
     tuc_int_handler(0);
 }
-
-// CAN-FD
-void FDCAN1_IT0_IRQHandler(void)
-{
-	/// TODO
-}

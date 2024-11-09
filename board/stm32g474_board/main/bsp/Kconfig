@@ -33,5 +33,6 @@ menu "Board Support Package"
 
 rsource "sdcard/Kconfig"
 rsource "spi/Kconfig"
+rsource "can/Kconfig"
 
 endmenu # "Board Support Package"

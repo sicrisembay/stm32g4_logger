@@ -8,6 +8,10 @@
 #ifndef FILESYSTEM_LFS_SD_CONFIG_H_
 #define FILESYSTEM_LFS_SD_CONFIG_H_
 
+#include "logger_conf.h"
+
+#if CONFIG_USE_LFS_SD
+
 // System includes
 #include "stdint.h"
 #include "stdbool.h"
@@ -161,4 +165,5 @@ static inline void lfs_free(void *p) {
     vPortFree(p);
 }
 
+#endif /* CONFIG_USE_LFS_SD */
 #endif /* FILESYSTEM_LFS_SD_CONFIG_H_ */

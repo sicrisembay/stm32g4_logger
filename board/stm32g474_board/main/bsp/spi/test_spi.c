@@ -67,7 +67,7 @@ static BaseType_t CmdSpiTransact(
                     "\tError: Parameter 1 value is invalid!\r\n\r\n");
             return 0;
         }
-        if((i32Temp < 0) || (i32Temp > N_SPI_MODE)) {
+        if((i32Temp < 0) || (i32Temp >= N_SPI_MODE)) {
             snprintf(pcWriteBuffer, xWriteBufferLen,
                     "\tError: Invalid mode!\r\n\r\n");
             return 0;

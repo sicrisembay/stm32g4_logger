@@ -5,6 +5,9 @@
  *      Author: Sicris Rey Embay
  */
 
+#include "logger_conf.h"
+
+#if CONFIG_USE_SDCARD
 
 #include "errno.h"
 #include "string.h"
@@ -467,3 +470,6 @@ void TEST_SDCARD_Init(void)
     FreeRTOS_CLIRegisterCommand(&sdcard_write);
     bInit = true;
 }
+
+#endif /* CONFIG_USE_SDCARD */
+

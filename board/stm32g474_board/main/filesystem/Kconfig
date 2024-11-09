@@ -1,5 +1,8 @@
-menu "Filesystem"
-    config TEST_LFS_SD
-        bool "Test Commands"
-        default y
-endmenu
+menuconfig USE_LFS_SD
+    bool "Filesystem"
+    
+    if USE_LFS_SD
+        config TEST_LFS_SD
+            bool "Test Commands"
+            default y
+    endif # USE_LFS_SD

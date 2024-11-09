@@ -1,0 +1,123 @@
+menuconfig USE_CAN
+    bool "CAN-STD/FD"
+    default y
+    
+    if USE_CAN
+        config CAN_COUNT
+            int "Instance"
+            default 3
+        menu "CAN1"
+            depends on CAN_COUNT >= 1
+            config FD_CAN_ONE
+                bool "Flexible Data Rate (FD)"
+                default n
+            config BRS_CAN_ONE
+                depends on FD_CAN_ONE
+                bool "Bit Rate Switching (BRS)"
+                default y
+            choice
+                prompt "Data Bit Rate"
+                config DATA_500KHZ_CAN_ONE
+                    bool "500kbps"
+                config DATA_1MHZ_CAN_ONE
+                    bool "1Mbps"
+                config DATA_2MHZ_CAN_ONE
+                    depends on BRS_CAN_ONE
+                    bool "2Mbps"
+            endchoice
+            config DATA_BPS_CAN_ONE
+                int
+                default 0 if DATA_500KHZ_CAN_ONE
+                default 1 if DATA_1MHZ_CAN_ONE
+                default 2 if DATA_2MHZ_CAN_ONE
+            choice
+                depends on BRS_CAN_ONE
+                prompt "Arbitration Data Rate"
+                config ARBIT_500KHZ_CAN_ONE
+                    bool "500kbps"
+                config ARBIT_1MHZ_CAN_ONE
+                    bool "1Mbps"
+            endchoice
+            config ARBIT_BPS_CAN_ONE
+                int
+                default 0 if ARBIT_500KHZ_CAN_ONE
+                default 1 if ARBIT_1MHZ_CAN_ONE
+                default 1
+        endmenu # CAN1
+        menu "CAN2"
+            depends on CAN_COUNT >= 2
+            config FD_CAN_TWO
+                bool "Flexible Data Rate (FD)"
+                default n
+            config BRS_CAN_TWO
+                depends on FD_CAN_TWO
+                bool "Bit Rate Switching (BRS)"
+                default y
+            choice
+                prompt "Data Bit Rate"
+                config DATA_500KHZ_CAN_TWO
+                    bool "500kbps"
+                config DATA_1MHZ_CAN_TWO
+                    bool "1Mbps"
+                config DATA_2MHZ_CAN_TWO
+                    depends on BRS_CAN_TWO
+                    bool "2Mbps"
+            endchoice
+            config DATA_BPS_CAN_TWO
+                int
+                default 0 if DATA_500KHZ_CAN_TWO
+                default 1 if DATA_1MHZ_CAN_TWO
+                default 2 if DATA_2MHZ_CAN_TWO
+            choice
+                depends on BRS_CAN_TWO
+                prompt "Arbitration Data Rate"
+                config ARBIT_500KHZ_CAN_TWO
+                    bool "500kbps"
+                config ARBIT_1MHZ_CAN_TWO
+                    bool "1Mbps"
+            endchoice
+            config ARBIT_BPS_CAN_TWO
+                int
+                default 0 if ARBIT_500KHZ_CAN_TWO
+                default 1 if ARBIT_1MHZ_CAN_TWO
+                default 1
+        endmenu # CAN2
+        menu "CAN3"
+            depends on CAN_COUNT >= 3
+            config FD_CAN_THREE
+                bool "Flexible Data Rate (FD)"
+                default n
+            config BRS_CAN_THREE
+                depends on FD_CAN_THREE
+                bool "Bit Rate Switching (BRS)"
+                default y
+            choice
+                prompt "Data Bit Rate"
+                config DATA_500KHZ_CAN_THREE
+                    bool "500kbps"
+                config DATA_1MHZ_CAN_THREE
+                    bool "1Mbps"
+                config DATA_2MHZ_CAN_THREE
+                    depends on BRS_CAN_THREE
+                    bool "2Mbps"
+            endchoice
+            config DATA_BPS_CAN_THREE
+                int
+                default 0 if DATA_500KHZ_CAN_THREE
+                default 1 if DATA_1MHZ_CAN_THREE
+                default 2 if DATA_2MHZ_CAN_THREE
+            choice
+                depends on BRS_CAN_THREE
+                prompt "Arbitration Data Rate"
+                config ARBIT_500KHZ_CAN_THREE
+                    bool "500kbps"
+                config ARBIT_1MHZ_CAN_THREE
+                    bool "1Mbps"
+            endchoice
+            config ARBIT_BPS_CAN_THREE
+                int
+                default 0 if ARBIT_500KHZ_CAN_THREE
+                default 1 if ARBIT_1MHZ_CAN_THREE
+                default 1
+        endmenu # CAN3
+    endif # USE_CAN

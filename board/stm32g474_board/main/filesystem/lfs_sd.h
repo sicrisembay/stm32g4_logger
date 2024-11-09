@@ -8,6 +8,10 @@
 #ifndef FILESYSTEM_LFS_SD_H_
 #define FILESYSTEM_LFS_SD_H_
 
+#include "logger_conf.h"
+
+#if CONFIG_USE_LFS_SD
+
 #include "lfs.h"
 
 int32_t lfs_sd_format();
@@ -25,4 +29,5 @@ int32_t lfs_sd_mv(const char * source, const char * target);
 int32_t lfs_sd_rm(const char * path);
 int32_t lfs_sd_fclose();
 
+#endif /* CONFIG_USE_LFS_SD */
 #endif /* FILESYSTEM_LFS_SD_H_ */

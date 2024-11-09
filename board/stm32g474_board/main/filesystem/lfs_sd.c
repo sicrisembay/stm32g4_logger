@@ -5,6 +5,10 @@
  *      Author: Sicris Rey Embay
  */
 
+#include "logger_conf.h"
+
+#if CONFIG_USE_LFS_SD
+
 #include "FreeRTOS.h"
 #include "semphr.h"
 #include "lfs.h"
@@ -455,3 +459,6 @@ uint32_t lfs_crc(uint32_t crc, const void *buffer, size_t size) {
 
     return crc;
 }
+
+#endif /* CONFIG_USE_LFS_SD */
+

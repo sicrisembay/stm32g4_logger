@@ -18,6 +18,8 @@
 #include "bsp/spi/bsp_spi.h"
 #include "bsp/lpuart.h"
 
+#if CONFIG_USE_SDCARD
+
 #define SD_PRINT_DEBUG_ENABLE   (1)
 #define SD_PRINTF(x, ...)       (SD_PRINT_DEBUG_ENABLE != 0) ? LPUART_printf(x, ##__VA_ARGS__) : (void)0
 
@@ -1387,3 +1389,6 @@ uint32_t SDCARD_GetBlockCount(void)
 {
     return (sdcard.max_block_count);
 }
+
+#endif /* CONFIG_USE_SDCARD */
+
