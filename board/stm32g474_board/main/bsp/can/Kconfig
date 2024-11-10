@@ -120,4 +120,27 @@ menuconfig USE_CAN
                 default 1 if ARBIT_1MHZ_CAN_THREE
                 default 1
         endmenu # CAN3
+
+        choice
+            prompt "Log level"
+            config CAN_LOG_OFF
+                bool "Off"
+            config CAN_LOG_DEBUG
+                bool "Debug"
+            config CAN_LOG_INFO
+                bool "Info"
+            config CAN_LOG_WARNING
+                bool "Warning"
+            config CAN_LOG_ERROR
+                bool "Error"
+        endchoice
+
+        config CAN_LOG_LEVEL
+            int
+            default 0 if CAN_LOG_DEBUG
+            default 1 if CAN_LOG_INFO
+            default 2 if CAN_LOG_WARNING
+            default 3 if CAN_LOG_ERROR
+            default 4 if CAN_LOG_OFF
+
     endif # USE_CAN

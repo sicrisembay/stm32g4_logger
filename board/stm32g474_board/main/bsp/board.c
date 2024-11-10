@@ -6,6 +6,7 @@
 #include "test_board.h"
 #include "lpuart.h"
 #include "spi/bsp_spi.h"
+#include "can/bsp_can.h"
 
 static PCD_HandleTypeDef hpcd_USB_FS;
 

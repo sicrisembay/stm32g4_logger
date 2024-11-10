@@ -9,8 +9,18 @@
 #define BSP_CAN_H_
 
 #include "logger_conf.h"
+
+#if CONFIG_USE_CAN
+
+#include "logger_conf.h"
 #include "stm32g4xx_hal_fdcan.h"
 #include "stdbool.h"
+
+#define TAG_CAN "can"
+#define CAN_LOG_DEBUG(x, ...)   (CONFIG_CAN_LOG_LEVEL <= CONFIG_LOG_LEVEL_DEBUG) ? LPUART_printf("D (%d) " TAG_CAN ": " x, xTaskGetTickCount(), ##__VA_ARGS__) : (void)0
+#define CAN_LOG_INFO(x, ...)    (CONFIG_CAN_LOG_LEVEL <= CONFIG_LOG_LEVEL_INFO) ? LPUART_printf("I (%d) " TAG_CAN ": " x, xTaskGetTickCount(), ##__VA_ARGS__) : (void)0
+#define CAN_LOG_WARN(x, ...)    (CONFIG_CAN_LOG_LEVEL <= CONFIG_LOG_LEVEL_WARNING) ? LPUART_printf("W (%d) " TAG_CAN ": " x, xTaskGetTickCount(), ##__VA_ARGS__) : (void)0
+#define CAN_LOG_ERROR(x, ...)   (CONFIG_CAN_LOG_LEVEL <= CONFIG_LOG_LEVEL_ERROR) ? LPUART_printf("E (%d) " TAG_CAN ": " x, xTaskGetTickCount(), ##__VA_ARGS__) : (void)0
 
 #define CONFIG_CANFD_DATA_SIZE      (64)
 
@@ -57,8 +67,10 @@ void BSP_CAN_init(void);
 bool BSP_CAN_configure(const CAN_ID_T id,
                        const ARBIT_BITRATE_T arbit_bps,
                        const DATA_BITRATE_T data_bps);
+bool BSP_CAN_is_enabled(const CAN_ID_T id);
 bool BSP_CAN_start(const CAN_ID_T id);
 bool BSP_CAN_stop(const CAN_ID_T id);
 bool BSP_CAN_send(const CAN_ID_T id, CAN_TX_T * pElem);
 
+#endif /* CONFIG_USE_CAN */
 #endif /* BSP_CAN_H_ */

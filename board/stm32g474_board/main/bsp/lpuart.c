@@ -285,9 +285,9 @@ void LPUART_Init(void)
 }
 
 
-int32_t LPUART_Send(uint8_t * buf, const uint32_t len)
+int32_t LPUART_Send(const uint8_t * buf, const uint32_t len)
 {
-    int32_t ret = LPUART_ERR_INVALID_STATE;
+    int32_t ret = 0;
     bool bInsideISR = (pdTRUE == xPortIsInsideInterrupt());
     BaseType_t mutexGetSuccess = pdFALSE;
     BaseType_t higherPriorityTaskWoken = pdFALSE;
@@ -314,13 +314,13 @@ int32_t LPUART_Send(uint8_t * buf, const uint32_t len)
                 ret = LPUART_ERR_SPACE_INSUFFICIENT;
             } else {
                 if(bInsideISR) {
-                    xStreamBufferSendFromISR(uart.txStreamHandle,
+                    ret = xStreamBufferSendFromISR(uart.txStreamHandle,
                                     buf,
                                     len,
                                     &higherPriorityTaskWoken);
                     xTaskNotifyFromISR(uart.taskHandle, TX_DATA_AVAILABLE, eSetBits, &higherPriorityTaskWoken);
                 } else {
-                    xStreamBufferSend(uart.txStreamHandle,
+                    ret = xStreamBufferSend(uart.txStreamHandle,
                                     buf,
                                     len,
                                     DEFAULT_BLOCK_WAIT_MS / portTICK_PERIOD_MS);
@@ -350,7 +350,7 @@ bool LPUART_TxDone(void)
 
 int32_t LPUART_Receive(uint8_t * buf, const uint32_t len)
 {
-    int32_t ret = LPUART_ERR_INVALID_STATE;
+    int32_t ret = 0;
     const bool bInsideISR = (pdTRUE == xPortIsInsideInterrupt());
     BaseType_t higherPriorityTaskWoken = pdFALSE;
     BaseType_t mutexGetSuccess = pdFALSE;

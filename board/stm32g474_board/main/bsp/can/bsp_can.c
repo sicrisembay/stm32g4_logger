@@ -13,6 +13,7 @@
 #include "bsp_can.h"
 #include "test_can.h"
 #include "stm32g4xx_hal.h"
+#include "lpuart.h"
 
 #define CONFIG_CAN_TASK_STACK_SIZE      (256)
 #define CONFIG_CAN_TASK_PRIORITY        (1)
@@ -58,6 +59,7 @@ typedef struct {
     StaticQueue_t rxQueueStruct;
     uint32_t debugRxCount;
     bool txInProgress;
+    bool isEnabled;
 } CAN_T;
 
 static bool bInit = false;
@@ -65,6 +67,9 @@ static CAN_T can[N_CAN_ID];
 static StackType_t taskStack[N_CAN_ID][CONFIG_CAN_TASK_STACK_SIZE];
 static uint8_t txQueueSto[N_CAN_ID][CONFIG_CAN_TX_Q_LEN * CONFIG_CAN_TX_ELEM_SIZE];
 static uint8_t rxQueueSto[N_CAN_ID][CONFIG_CAN_RX_Q_LEN * CONFIG_CAN_RX_ELEM_SIZE];
+
+static const uint32_t const DLC_TO_BYTES[16] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 12,
+                    16, 20, 24, 32, 48, 64};
 
 /*
  *
@@ -240,6 +245,23 @@ static void can_task(void * pvParam)
                 while(pdTRUE == xQueueReceive(me->rxQueueHandle,
                         &rxElem, 0)) {
                     me->debugRxCount++;
+                    CAN_LOG_DEBUG("id: 0x%03lx dlc: %02d\r\n",
+                            rxElem.header.Identifier,
+                            DLC_TO_BYTES[rxElem.header.DataLength]);
+                    /*
+                     * [0]     : tag (0xFF)
+                     * [1..2]  : length
+                     * [3..6]  : timestamp offset
+                     * [7..10] : SEQ number
+                     * [11]    : packet type
+                     *             0x00: Start Time in Ticks
+                     *             0x01: Tx CAN standard
+                     *             0x02: Rx CAN standard
+                     *             0x03: Tx CAN-FD
+                     *             0x04: Rx CAN-FD
+                     * [12..N] : payload
+                     * [N]     : checksum8
+                     */
                     /// TODO: Write to SD card
                 }
             }
@@ -367,6 +389,7 @@ void BSP_CAN_init(void)
 
     for(uint32_t i = 0; i < N_CAN_ID; i++) {
         CAN_T * const me = &can[i];
+        me->isEnabled = false;
         me->IRQn = DEFAULT_FCAN_IRQ[i];
 
         me->txQueueHandle = xQueueCreateStatic(
@@ -466,6 +489,17 @@ bool BSP_CAN_configure(const CAN_ID_T id,
 }
 
 
+bool BSP_CAN_is_enabled(const CAN_ID_T id)
+{
+    if(id >= N_CAN_ID) {
+        return false;
+    }
+
+    CAN_T * const me = &(can[id]);
+    return me->isEnabled;
+}
+
+
 bool BSP_CAN_start(const CAN_ID_T id)
 {
     if(id >= N_CAN_ID) {
@@ -474,18 +508,25 @@ bool BSP_CAN_start(const CAN_ID_T id)
 
     CAN_T * const me = &(can[id]);
 
-    if(HAL_OK != HAL_FDCAN_Start(&(me->FDCAN_handle))) {
-        return false;
+    if(!me->isEnabled) {
+        if(HAL_OK != HAL_FDCAN_Start(&(me->FDCAN_handle))) {
+            CAN_LOG_DEBUG("HAL_FDCAN_Start error!\r\n");
+            return false;
+        }
+
+        if(HAL_OK != HAL_FDCAN_ActivateNotification(
+                            &(me->FDCAN_handle),
+                            FDCAN_IT_RX_FIFO0_NEW_MESSAGE | FDCAN_IT_TX_FIFO_EMPTY,
+                            FDCAN_TX_BUFFER0)) {
+            CAN_LOG_DEBUG("HAL_FDCAN_ActivateNotification error!\r\n");
+            return false;
+        }
+
+        NVIC_EnableIRQ(me->IRQn);
+        me->isEnabled = true;
     }
 
-    if(HAL_OK != HAL_FDCAN_ActivateNotification(
-                        &(me->FDCAN_handle),
-                        FDCAN_IT_RX_FIFO0_NEW_MESSAGE | FDCAN_IT_TX_FIFO_EMPTY,
-                        FDCAN_TX_BUFFER0)) {
-        return false;
-    }
-
-    NVIC_EnableIRQ(me->IRQn);
+    CAN_LOG_INFO("CAN%d enabled\r\n", (id + 1));
 
     return true;
 }
@@ -499,18 +540,23 @@ bool BSP_CAN_stop(const CAN_ID_T id)
 
     CAN_T * const me = &(can[id]);
 
-    NVIC_DisableIRQ(me->IRQn);
+    if(me->isEnabled) {
+        me->isEnabled = false;
+        NVIC_DisableIRQ(me->IRQn);
 
-    if(HAL_OK != HAL_FDCAN_DeactivateNotification(
-                    &(me->FDCAN_handle),
-                    FDCAN_IT_RX_FIFO0_NEW_MESSAGE)) {
-        return false;
+        if(HAL_OK != HAL_FDCAN_DeactivateNotification(
+                        &(me->FDCAN_handle),
+                        FDCAN_IT_RX_FIFO0_NEW_MESSAGE)) {
+            CAN_LOG_DEBUG("HAL_FDCAN_DeactivateNotification error!\r\n");
+            return false;
+        }
+
+        if(HAL_OK != HAL_FDCAN_Stop(&(me->FDCAN_handle))) {
+            CAN_LOG_DEBUG("HAL_FDCAN_Stop error!\r\n");
+            return false;
+        }
     }
-
-    if(HAL_OK != HAL_FDCAN_Stop(&(me->FDCAN_handle))) {
-        return false;
-    }
-
+    CAN_LOG_INFO("CAN%d disabled\r\n", (id + 1));
     return true;
 }
 
@@ -525,6 +571,11 @@ bool BSP_CAN_send(const CAN_ID_T id, CAN_TX_T * pElem)
     }
 
     CAN_T * const me = &(can[id]);
+
+    if(me->isEnabled != true) {
+        /* Not yet initialized or disabled */
+        return false;
+    }
 
     if(bInsideISR) {
         if(pdTRUE != xQueueSendFromISR(me->txQueueHandle, pElem, &higherPriorityTaskWoken)) {

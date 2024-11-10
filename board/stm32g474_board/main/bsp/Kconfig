@@ -31,8 +31,24 @@ menu "Board Support Package"
             default  10000000 if APB2_DIV_16
     endmenu # "Clock"
 
-rsource "sdcard/Kconfig"
-rsource "spi/Kconfig"
-rsource "can/Kconfig"
+    config LOG_LEVEL_DEBUG
+        int
+        default 0
+    config LOG_LEVEL_INFO
+        int
+        default 1
+    config LOG_LEVEL_WARNING
+        int
+        default 2
+    config LOG_LEVEL_ERROR
+        int
+        default 3
+    config LOG_LEVEL_OFF
+        int
+        default 4
+
+    rsource "sdcard/Kconfig"
+    rsource "spi/Kconfig"
+    rsource "can/Kconfig"
 
 endmenu # "Board Support Package"
