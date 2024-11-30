@@ -1,3 +1,3 @@
 # STM32G4 Datalogger
 
-![](doc/img/nucleo-g474re.jpg)
+![](docs/img/nucleo-g474re.jpg)
