@@ -2,6 +2,11 @@ menuconfig USE_LFS_SD
     bool "Filesystem"
     
     if USE_LFS_SD
+        menu "Log"
+            config LFS_LOG_TRACE
+                bool "Trace"
+                default n
+        endmenu
         config TEST_LFS_SD
             bool "Test Commands"
             default y

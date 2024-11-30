@@ -174,7 +174,7 @@ static void lfs_sd_init(void)
 #endif /* LFS_THREADSAFE */
     cfg.read_size = SDCARD_BLOCK_SIZE;
     cfg.prog_size = SDCARD_BLOCK_SIZE;
-    cfg.block_size = SDCARD_SECTOR_SIZE;
+    cfg.block_size = SDCARD_BLOCK_SIZE;
     cfg.block_count = SDCARD_GetBlockCount();
     cfg.block_cycles = 500;
     cfg.cache_size = SDCARD_BLOCK_SIZE;

@@ -379,28 +379,30 @@ int32_t SDCARD_Init(void)
         return ret;
     }
     r1 = SDCARD_ReadR1();
-    /* Toggle CS */
-    SD_ChipSelect(false);
-    vTaskDelay(1);
-    SD_ChipSelect(true);
-    /* Second CMD0 */
-    ret = SDCARD_SendCMD0();
-    if(SDCARD_ERR_NONE != ret) {
-        SD_PRINTF("SD Init  Error %d\r\n", __LINE__);
-        SD_ChipSelect(false);
-        return ret;
-    }
-    r1 = SDCARD_ReadR1();
-    if(r1 < 0) {
-        SD_ChipSelect(false);
-        ret = r1;
-        SD_PRINTF("SD Init  Error %d\r\n", __LINE__);
-        return ret;
-    }
     if(r1 != 0x01) {
+        /* Toggle CS */
         SD_ChipSelect(false);
-        SD_PRINTF("SD Init  Error %d (r1: 0x%02x)\r\n", __LINE__, r1);
-        return SDCARD_ERR_UNKNOWN_CARD;
+        vTaskDelay(1);
+        SD_ChipSelect(true);
+        /* Second CMD0 */
+        ret = SDCARD_SendCMD0();
+        if(SDCARD_ERR_NONE != ret) {
+            SD_PRINTF("SD Init  Error %d\r\n", __LINE__);
+            SD_ChipSelect(false);
+            return ret;
+        }
+        r1 = SDCARD_ReadR1();
+        if(r1 < 0) {
+            SD_ChipSelect(false);
+            ret = r1;
+            SD_PRINTF("SD Init  Error %d\r\n", __LINE__);
+            return ret;
+        }
+        if(r1 != 0x01) { // && (r1 != 0x7F) .. i don't know why CMD0 reply is 0x7F
+            SD_ChipSelect(false);
+            SD_PRINTF("SD Init  Error %d (r1: 0x%02x)\r\n", __LINE__, r1);
+            return SDCARD_ERR_UNKNOWN_CARD;
+        }
     }
     /*
      * Step 3.

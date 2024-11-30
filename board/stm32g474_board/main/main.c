@@ -39,6 +39,7 @@ static void mainTask(void * pvParam)
 
             } else {
                 LPUART_printf("SDCARD_Init failed!\r\n");
+                vTaskDelete(taskHandle_main);
             }
         }
     }

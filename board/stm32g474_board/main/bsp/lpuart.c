@@ -26,7 +26,7 @@
 #define TX_STREAM_BUFFER_SIZE_BYTES   (512)
 #define RX_STREAM_BUFFER_SIZE_BYTES   (256)
 #define RX_DMA_BUFFER_SIZE            (8)
-#define PRINTF_BUFFER_SIZE            (128)
+#define PRINTF_BUFFER_SIZE            (512)
 
 typedef struct {
     UART_HandleTypeDef handle;

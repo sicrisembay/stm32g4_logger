@@ -26,6 +26,10 @@
 #include "assert.h"
 #endif
 
+#if CONFIG_LFS_LOG_TRACE
+#define LFS_YES_TRACE
+#endif
+
 #if !defined(LFS_NO_DEBUG) || \
     !defined(LFS_NO_WARN) || \
     !defined(LFS_NO_ERROR) || \
