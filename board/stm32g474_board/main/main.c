@@ -20,12 +20,13 @@ static StackType_t taskStackStorage[MAIN_TASK_STACK_SIZE];
 
 static void mainTask(void * pvParam)
 {
-    int32_t ret;
     TickType_t xLastWakeTime;
-    uint32_t retry = 0;
 
     CLI_init();
     vTaskDelay(100);
+#if CONFIG_USE_SDCARD
+    uint32_t retry = 0;
+    int32_t ret;
     while(1) {
         ret = SDCARD_Init();
         if(SDCARD_ERR_NONE == ret) {
@@ -43,9 +44,13 @@ static void mainTask(void * pvParam)
             }
         }
     }
-    TEST_LFS_Init();
+#endif /* CONFIG_USE_SDCARD */
 
-    //usb_device_init();
+#if CONFIG_TEST_LFS_SD
+    TEST_LFS_Init();
+#endif /* CONFIG_TEST_LFS_SD */
+
+    usb_device_init();
 
     xLastWakeTime = xTaskGetTickCount();
     while(1) {

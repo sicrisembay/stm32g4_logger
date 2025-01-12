@@ -1,4 +1,5 @@
 menuconfig USE_LFS_SD
+    depends on USE_SDCARD
     bool "Filesystem"
     
     if USE_LFS_SD

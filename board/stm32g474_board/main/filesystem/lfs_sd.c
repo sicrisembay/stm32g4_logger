@@ -15,7 +15,7 @@
 #include "lfs_sd.h"
 #include "sdcard.h"
 
-#define LFS_LOOKAHEAD_SIZE          (16)
+#define LFS_LOOKAHEAD_SIZE          (8192)
 #define LFS_SD_PRINT_DEBUG_ENABLE   (1)
 #define LFS_SD_PRINTF(x, ...)       (LFS_SD_PRINT_DEBUG_ENABLE != 0) ? LPUART_printf("lfs_sd: "x, ##__VA_ARGS__) : (void)0
 
@@ -32,6 +32,8 @@ static uint8_t lfs_lookAheadBuffer[LFS_LOOKAHEAD_SIZE];
 static uint8_t dummyBuffer[SDCARD_BLOCK_SIZE];
 static uint8_t fileCacheBuffer[SDCARD_BLOCK_SIZE];
 
+#define BLOCK_SIZE_FACTOR           (128)
+
 #ifdef LFS_THREADSAFE
 static SemaphoreHandle_t lfs_mutex_handle = NULL;
 static StaticSemaphore_t lfs_mutexStruct;
@@ -43,10 +45,10 @@ static int sd_read(const struct lfs_config *c, lfs_block_t block,
     if((c == NULL) || (buffer == NULL)) {
         return LFS_ERR_INVAL;
     }
-    (void)size;  // unused
-    (void)off;   // unused
 
-    const int32_t ret = SDCARD_ReadSingleBlock(block, buffer, c->read_size);
+    const uint32_t sdBlockNbr = (block * BLOCK_SIZE_FACTOR) + off;
+
+    const int32_t ret = SDCARD_ReadSingleBlock(sdBlockNbr, buffer, size);
     if(SDCARD_ERR_NONE != ret) {
         LFS_SD_PRINTF("SD read error %ld\r\n", ret);
         return LFS_ERR_IO;
@@ -61,10 +63,10 @@ static int sd_prog(const struct lfs_config *c, lfs_block_t block,
     if((c == NULL) || (buffer == NULL)) {
         return LFS_ERR_INVAL;
     }
-    (void)size;  // unused
-    (void)off;   // unused
 
-    const int32_t ret = SDCARD_WriteSingleBlock(block, buffer, c->prog_size);
+    const uint32_t sdBlockNbr = (block * BLOCK_SIZE_FACTOR) + off;
+
+    const int32_t ret = SDCARD_WriteSingleBlock(sdBlockNbr, buffer, size);
     if(SDCARD_ERR_NONE != ret) {
         LFS_SD_PRINTF("SD write error %ld\r\n", ret);
         return LFS_ERR_IO;
@@ -76,11 +78,14 @@ static int sd_prog(const struct lfs_config *c, lfs_block_t block,
 static int sd_erase(const struct lfs_config *c, lfs_block_t block)
 {
     memset(dummyBuffer, 0xFF, sizeof(dummyBuffer));
-    // SD dummy erase
-    const int32_t ret = SDCARD_WriteSingleBlock(block, dummyBuffer, sizeof(dummyBuffer));
-    if(SDCARD_ERR_NONE != ret) {
-        LFS_SD_PRINTF("SD erase error %ld\r\n", ret);
-        return LFS_ERR_IO;
+    for(uint32_t off = 0; off < BLOCK_SIZE_FACTOR; off++) {
+        // SD dummy erase
+        const uint32_t sdBlockNbr = (block * BLOCK_SIZE_FACTOR) + off;
+        const int32_t ret = SDCARD_WriteSingleBlock(sdBlockNbr, dummyBuffer, sizeof(dummyBuffer));
+        if(SDCARD_ERR_NONE != ret) {
+            LFS_SD_PRINTF("SD erase error %ld\r\n", ret);
+            return LFS_ERR_IO;
+        }
     }
     return LFS_ERR_OK;
 }
@@ -174,14 +179,15 @@ static void lfs_sd_init(void)
 #endif /* LFS_THREADSAFE */
     cfg.read_size = SDCARD_BLOCK_SIZE;
     cfg.prog_size = SDCARD_BLOCK_SIZE;
-    cfg.block_size = SDCARD_BLOCK_SIZE;
-    cfg.block_count = SDCARD_GetBlockCount();
-    cfg.block_cycles = 500;
+    cfg.block_size = SDCARD_BLOCK_SIZE * BLOCK_SIZE_FACTOR;
+    cfg.block_count = SDCARD_GetBlockCount() / BLOCK_SIZE_FACTOR;
+    cfg.block_cycles = 512;
     cfg.cache_size = SDCARD_BLOCK_SIZE;
     cfg.lookahead_size = LFS_LOOKAHEAD_SIZE;
     cfg.read_buffer = lfs_readBuffer;
     cfg.prog_buffer = lfs_progBuffer;
     cfg.lookahead_buffer = lfs_lookAheadBuffer;
+    cfg.name_max = 255;
 
     memset(&cfgFile, 0, sizeof(cfgFile));
     cfgFile.buffer = fileCacheBuffer;
@@ -203,6 +209,11 @@ int32_t lfs_sd_format()
     return lfs_format(&lfs, &cfg);
 }
 
+
+struct lfs_config * lfs_sd_stat()
+{
+    return(lfs.cfg);
+}
 
 lfs_t * lfs_sd_mount()
 {
@@ -276,7 +287,7 @@ int32_t lfs_sd_mkdir(const char * path)
 
 int32_t lfs_sd_ls(const char * path, char * outBuffer, size_t bufferLen)
 {
-    char tempStr[24];
+    char tempStr[48];
     if((path == NULL) || (outBuffer == NULL)) {
         return LFS_ERR_INVAL;
     }
@@ -321,8 +332,9 @@ int32_t lfs_sd_ls(const char * path, char * outBuffer, size_t bufferLen)
 
         snprintf(tempStr, sizeof(tempStr), "%10ld ", info.size);
         strncat(outBuffer, tempStr, bufferLen);
-        snprintf(tempStr, sizeof(tempStr), "%s\r\n", info.name);
+        snprintf(tempStr, sizeof(tempStr), "%s", info.name);
         strncat(outBuffer, tempStr, bufferLen);
+        strncat(outBuffer, "\r\n", bufferLen);
     }
 
     strncat(outBuffer, "\r\n", bufferLen);

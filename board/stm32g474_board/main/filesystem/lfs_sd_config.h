@@ -9,15 +9,14 @@
 #define FILESYSTEM_LFS_SD_CONFIG_H_
 
 #include "logger_conf.h"
-
-#if CONFIG_USE_LFS_SD
-
-// System includes
 #include "stdint.h"
 #include "stdbool.h"
 #include "string.h"
 #include "inttypes.h"
 
+#if CONFIG_USE_LFS_SD
+
+// System includes
 #ifndef LFS_NO_MALLOC
 #include "stdlib.h"
 #endif
@@ -43,7 +42,7 @@
 #include "lpuart.h"
 
 #define LFS_THREADSAFE      1
-#define LFS_NAME_MAX        127
+#define LFS_NAME_MAX        255
 
 // Logging functions
 #ifndef LFS_TRACE

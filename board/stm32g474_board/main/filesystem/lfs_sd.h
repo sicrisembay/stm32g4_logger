@@ -15,6 +15,7 @@
 #include "lfs.h"
 
 int32_t lfs_sd_format();
+struct lfs_config * lfs_sd_stat();
 lfs_t * lfs_sd_mount();
 int32_t lfs_sd_umount();
 int32_t lfs_sd_df();

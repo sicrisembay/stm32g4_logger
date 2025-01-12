@@ -40,13 +40,13 @@ static BaseType_t CmdCanStart(
                                 &strParamLen);
     if(ptrStrParam == NULL) {
         snprintf(pcWriteBuffer, xWriteBufferLen,
-                "E (%d) " TAG_TEST_CAN
+                "E (%ld) " TAG_TEST_CAN
                 ": Parameter 1 not found!\r\n\r\n", xTaskGetTickCount());
         return 0;
     }
     if(strParamLen > (sizeof(tmpStr) - 1)) {
         snprintf(pcWriteBuffer, xWriteBufferLen,
-                "E (%d) " TAG_TEST_CAN
+                "E (%ld) " TAG_TEST_CAN
                 ": Parameter len exceeded buffer!\r\n\r\n", xTaskGetTickCount());
         return 0;
     }
@@ -57,13 +57,13 @@ static BaseType_t CmdCanStart(
     if((ptrEnd == tmpStr) || (*ptrEnd != '\0') ||
        (((i32Temp == LONG_MIN) || (i32Temp == LONG_MAX)) && (errno == ERANGE))) {
         snprintf(pcWriteBuffer, xWriteBufferLen,
-                "E (%d) " TAG_TEST_CAN
+                "E (%ld) " TAG_TEST_CAN
                 ": Parameter 1 value is invalid!\r\n\r\n", xTaskGetTickCount());
         return 0;
     }
     if((i32Temp < 0) || (i32Temp >= N_CAN_ID)) {
         snprintf(pcWriteBuffer, xWriteBufferLen,
-                "E (%d) " TAG_TEST_CAN
+                "E (%ld) " TAG_TEST_CAN
                 ": Invalid CAN peripheral\r\n\r\n", xTaskGetTickCount());
         return 0;
     }
@@ -71,7 +71,7 @@ static BaseType_t CmdCanStart(
 
     BSP_CAN_start(id);
     snprintf(pcWriteBuffer, xWriteBufferLen,
-            "I (%d) " TAG_TEST_CAN
+            "I (%ld) " TAG_TEST_CAN
             ": OK\r\n\r\n", xTaskGetTickCount());
     return 0;
 }
@@ -105,13 +105,13 @@ static BaseType_t CmdCanStop(
                                 &strParamLen);
     if(ptrStrParam == NULL) {
         snprintf(pcWriteBuffer, xWriteBufferLen,
-                "E (%d) " TAG_TEST_CAN
+                "E (%ld) " TAG_TEST_CAN
                 ": Parameter 1 not found!\r\n\r\n", xTaskGetTickCount());
         return 0;
     }
     if(strParamLen > (sizeof(tmpStr) - 1)) {
         snprintf(pcWriteBuffer, xWriteBufferLen,
-                "E (%d) " TAG_TEST_CAN
+                "E (%ld) " TAG_TEST_CAN
                 ": Parameter len exceeded buffer!\r\n\r\n", xTaskGetTickCount());
         return 0;
     }
@@ -122,13 +122,13 @@ static BaseType_t CmdCanStop(
     if((ptrEnd == tmpStr) || (*ptrEnd != '\0') ||
        (((i32Temp == LONG_MIN) || (i32Temp == LONG_MAX)) && (errno == ERANGE))) {
         snprintf(pcWriteBuffer, xWriteBufferLen,
-                "E (%d) " TAG_TEST_CAN
+                "E (%ld) " TAG_TEST_CAN
                 ": Parameter 1 value is invalid!\r\n\r\n", xTaskGetTickCount());
         return 0;
     }
     if((i32Temp < 0) || (i32Temp >= N_CAN_ID)) {
         snprintf(pcWriteBuffer, xWriteBufferLen,
-                "E (%d) " TAG_TEST_CAN
+                "E (%ld) " TAG_TEST_CAN
                 ": Invalid CAN peripheral!\r\n\r\n", xTaskGetTickCount());
         return 0;
     }
@@ -136,7 +136,7 @@ static BaseType_t CmdCanStop(
 
     BSP_CAN_stop(id);
     snprintf(pcWriteBuffer, xWriteBufferLen,
-            "I (%d) " TAG_TEST_CAN
+            "I (%ld) " TAG_TEST_CAN
             ": OK\r\n\r\n", xTaskGetTickCount());
     return 0;
 }
@@ -175,13 +175,13 @@ static BaseType_t CmdCanSend(
                                 &strParamLen);
     if(ptrStrParam == NULL) {
         snprintf(pcWriteBuffer, xWriteBufferLen,
-                "E (%d) " TAG_TEST_CAN
+                "E (%ld) " TAG_TEST_CAN
                 ": Parameter 1 not found!\r\n\r\n", xTaskGetTickCount());
         return 0;
     }
     if(strParamLen > (sizeof(tmpStr) - 1)) {
         snprintf(pcWriteBuffer, xWriteBufferLen,
-                "E (%d) " TAG_TEST_CAN
+                "E (%ld) " TAG_TEST_CAN
                 ": Parameter 1 len exceeded buffer!\r\n\r\n", xTaskGetTickCount());
         return 0;
     }
@@ -192,13 +192,13 @@ static BaseType_t CmdCanSend(
     if((ptrEnd == tmpStr) || (*ptrEnd != '\0') ||
        (((i32Temp == LONG_MIN) || (i32Temp == LONG_MAX)) && (errno == ERANGE))) {
         snprintf(pcWriteBuffer, xWriteBufferLen,
-                "E (%d) " TAG_TEST_CAN
+                "E (%ld) " TAG_TEST_CAN
                 ": Parameter 1 value is invalid!\r\n\r\n", xTaskGetTickCount());
         return 0;
     }
     if((i32Temp < 0) || (i32Temp >= N_CAN_ID)) {
         snprintf(pcWriteBuffer, xWriteBufferLen,
-                "E (%d) " TAG_TEST_CAN
+                "E (%ld) " TAG_TEST_CAN
                 ": Invalid CAN peripheral!\r\n\r\n", xTaskGetTickCount());
         return 0;
     }
@@ -212,13 +212,13 @@ static BaseType_t CmdCanSend(
                                 &strParamLen);
     if(ptrStrParam == NULL) {
         snprintf(pcWriteBuffer, xWriteBufferLen,
-                "E (%d) " TAG_TEST_CAN
+                "E (%ld) " TAG_TEST_CAN
                 ": Parameter 2 not found!\r\n\r\n", xTaskGetTickCount());
         return 0;
     }
     if(strParamLen > (sizeof(tmpStr) - 1)) {
         snprintf(pcWriteBuffer, xWriteBufferLen,
-                "E (%d) " TAG_TEST_CAN
+                "E (%ld) " TAG_TEST_CAN
                 ": Parameter 2 len exceeded buffer!\r\n\r\n", xTaskGetTickCount());
         return 0;
     }
@@ -229,13 +229,13 @@ static BaseType_t CmdCanSend(
     if((ptrEnd == tmpStr) || (*ptrEnd != '\0') ||
        (((i32Temp == LONG_MIN) || (i32Temp == LONG_MAX)) && (errno == ERANGE))) {
         snprintf(pcWriteBuffer, xWriteBufferLen,
-                "E (%d) " TAG_TEST_CAN
+                "E (%ld) " TAG_TEST_CAN
                 ": Parameter 2 value is invalid!\r\n\r\n", xTaskGetTickCount());
         return 0;
     }
     if((i32Temp < 0) || (i32Temp >= 0x7FF)) {
         snprintf(pcWriteBuffer, xWriteBufferLen,
-                "E (%d) " TAG_TEST_CAN
+                "E (%ld) " TAG_TEST_CAN
                 ": Invalid CAN 11-bit message ID!\r\n\r\n", xTaskGetTickCount());
         return 0;
     }
@@ -253,7 +253,7 @@ static BaseType_t CmdCanSend(
         }
         if(strParamLen > (sizeof(tmpStr) - 1)) {
             snprintf(pcWriteBuffer, xWriteBufferLen,
-                    "E (%d) " TAG_TEST_CAN
+                    "E (%ld) " TAG_TEST_CAN
                     ": Parameter 3 len exceeded buffer!\r\n\r\n", xTaskGetTickCount());
             return 0;
         }
@@ -264,7 +264,7 @@ static BaseType_t CmdCanSend(
         if((ptrEnd == tmpStr) || (*ptrEnd != '\0') ||
            (((i32Temp == LONG_MIN) || (i32Temp == LONG_MAX)) && (errno == ERANGE))) {
             snprintf(pcWriteBuffer, xWriteBufferLen,
-                    "E (%d) " TAG_TEST_CAN
+                    "E (%ld) " TAG_TEST_CAN
                     ": Parameter 3 value is invalid!\r\n\r\n", xTaskGetTickCount());
             return 0;
         }
@@ -297,20 +297,20 @@ static BaseType_t CmdCanSend(
 
     if(!BSP_CAN_is_enabled(periph)) {
         snprintf(pcWriteBuffer, xWriteBufferLen,
-                "E (%d) " TAG_TEST_CAN
+                "E (%ld) " TAG_TEST_CAN
                 ": CAN%d not enabled!\r\n\r\n", xTaskGetTickCount(), (periph + 1));
         return 0;
     }
 
     if(!BSP_CAN_send(periph, &canTxElem)) {
         snprintf(pcWriteBuffer, xWriteBufferLen,
-                "E (%d) " TAG_TEST_CAN
+                "E (%ld) " TAG_TEST_CAN
                 ": BSP_CAN_send Failed!\r\n\r\n", xTaskGetTickCount());
         return 0;
     }
 
     snprintf(pcWriteBuffer, xWriteBufferLen,
-            "I (%d) " TAG_TEST_CAN
+            "I (%ld) " TAG_TEST_CAN
             ": OK\r\n\r\n", xTaskGetTickCount());
     return 0;
 }

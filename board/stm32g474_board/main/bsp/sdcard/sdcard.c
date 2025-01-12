@@ -31,7 +31,7 @@
 #define SD_DETECT_Port          GPIOC
 
 #define SD_DEFAULT_TIMEOUT      (100)
-#define SD_WAIT_BUSY_TIMEOUT    (100)
+#define SD_WAIT_BUSY_TIMEOUT    (1000)
 #define SD_WAIT_TOKEN_TIMEOUT   (200)
 
 static bool bInit = false;
@@ -41,9 +41,9 @@ static uint8_t block_data[SDCARD_BLOCK_SIZE];
 
 typedef struct {
     uint8_t csd_version;
-    uint32_t max_block_count;
+    uint32_t max_block_count;   // number of 512-byte block
     uint32_t sector_size;       // Size of erasable sector in bytes
-    uint32_t size;              // Card size in Mega-Bytes (MB)
+    uint32_t size_MB;           // Card size in Mega-Bytes (MB)
 } SDCARD_T;
 
 static SDCARD_T sdcard = {0};
@@ -63,10 +63,10 @@ void SD_ChipSelect(bool bSelect)
 R1: 0abcdefg
      ||||||`- 1th bit (g): card is in idle state
      |||||`-- 2th bit (f): erase sequence cleared
-     ||||`--- 3th bit (e): illigal command detected
+     ||||`--- 3th bit (e): illegal command detected
      |||`---- 4th bit (d): crc check error
      ||`----- 5th bit (c): error in the sequence of erase commands
-     |`------ 6th bit (b): misaligned addres used in command
+     |`------ 6th bit (b): misaligned address used in command
      `------- 7th bit (a): command argument outside allowed range
              (8th bit is always zero)
 */
@@ -87,7 +87,7 @@ static int8_t SDCARD_ReadR1() {
      *   MMC : 1-8 bytes
      */
     uint32_t ncr = 0;
-    const uint32_t ncrMax = 12; /* NCR + some margin */
+    const uint32_t ncrMax = 32; /* NCR + some huge margin */
     // make sure FF is transmitted during receive
     uint8_t tx = 0xFF;
     for(;;) {
@@ -318,12 +318,16 @@ int32_t SDCARD_Init(void)
     LL_GPIO_Init(SD_DETECT_Port, &GPIO_InitStruct);
     retry = 0;
     while(1) {
+#if CONFIG_SDCARD_DETECT_ACTIVE_HIGH
+        if((LL_GPIO_ReadInputPort(SD_DETECT_Port) & SD_DETECT_Pin) != 0) {
+#else
         if((LL_GPIO_ReadInputPort(SD_DETECT_Port) & SD_DETECT_Pin) == 0) {
+#endif
             retry++;
             vTaskDelay(10);
             if(retry >= 10) {
                 /* Card not detected.  Hot plug is not supported */
-                SD_PRINTF("SD Card not preset\r\n");
+                SD_PRINTF("SD Card not detected!\r\n");
                 return SDCARD_ERR_NOT_PRESENT;
             }
         } else {
@@ -349,9 +353,15 @@ int32_t SDCARD_Init(void)
     */
     SD_ChipSelect(false);  // CS unselect
     {
+#if 0
         // 96 clock pulses
         uint8_t dummy[12] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
                 0xFF, 0xFF, 0xFF, 0xFF};
+#else
+        // 192 clock pulses
+        uint8_t dummy[24];
+        memset(dummy, 0xFF, sizeof(dummy));
+#endif
         while(pdTRUE == xSemaphoreTake(semHandle, 0));
         ret = BSP_SPI_transact(dummy, dummy, sizeof(dummy), SPI_MODE0, NULL, BSP_SPI_CLK_156KHZ, semHandle, &status);
         if(ret != SPI_ERR_NONE) {
@@ -398,7 +408,7 @@ int32_t SDCARD_Init(void)
             SD_PRINTF("SD Init  Error %d\r\n", __LINE__);
             return ret;
         }
-        if(r1 != 0x01) { // && (r1 != 0x7F) .. i don't know why CMD0 reply is 0x7F
+        if(r1 != 0x01) { // && (r1 != 0x7F) .. i don't know why CMD0 reply is 0x7F in some other cards
             SD_ChipSelect(false);
             SD_PRINTF("SD Init  Error %d (r1: 0x%02x)\r\n", __LINE__, r1);
             return SDCARD_ERR_UNKNOWN_CARD;
@@ -640,6 +650,13 @@ int32_t SDCARD_Init(void)
         bInit = false;
         return ret;
     }
+    // check CSD version
+    sdcard.csd_version = (block_data[0] >> 6) & 0x03;
+    if(sdcard.csd_version != 0x01) {
+        SD_PRINTF("CSD Version 2.0 not found\r\n");
+        bInit = false;
+        return SDCARD_ERR_UNSUPPORTED;
+    }
     // check READ_BL_LEN
     if((block_data[5] & 0x0F) != 0x09) {
         SD_PRINTF("READ_BL_LEN != 512 Byte\r\n");
@@ -652,16 +669,10 @@ int32_t SDCARD_Init(void)
         bInit = false;
         return SDCARD_ERR_UNSUPPORTED;
     }
-    // check CSD version
-    sdcard.csd_version = (block_data[0] >> 6) & 0x03;
-    if(sdcard.csd_version != 0x01) {
-        SD_PRINTF("CSD Version 2.0 not found\r\n");
-        bInit = false;
-        return SDCARD_ERR_UNSUPPORTED;
-    }
-    sdcard.max_block_count = block_data[9] + ((uint32_t)block_data[8] << 8) +
-            ((uint32_t)(block_data[7] & 0x3F) << 16);
-    sdcard.size = ((sdcard.max_block_count + 1) * 512) / 1024;
+    const uint32_t block_count_512K = block_data[9] +
+            ((uint32_t)block_data[8] << 8) + ((uint32_t)(block_data[7] & 0x3F) << 16);
+    sdcard.max_block_count = block_count_512K * 1024U;
+    sdcard.size_MB = ((block_count_512K + 1) * 512) / 1024;
     const uint32_t sd_sectorSize = ((block_data[10] & 0x3F) << 1) +
                                    ((block_data[11] >> 7) & 0x01);
     // check Sector Size
@@ -970,7 +981,8 @@ int32_t SDCARD_ReadCardSpecificData(uint8_t * buff, size_t buffLen)
     }
 
     SD_ChipSelect(false);
-    return SDCARD_ERR_NONE;}
+    return SDCARD_ERR_NONE;
+}
 
 
 int32_t SDCARD_ReadSingleBlock(uint32_t blockNum, uint8_t * buff, size_t buffLen)

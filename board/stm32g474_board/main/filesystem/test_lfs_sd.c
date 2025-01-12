@@ -50,6 +50,48 @@ static const CLI_Command_Definition_t lfs_cmd_format = {
 };
 
 
+static BaseType_t FuncLfsCmdStat(
+                char *pcWriteBuffer,
+                size_t xWriteBufferLen,
+                const char *pcCommandString )
+{
+    memset(pcWriteBuffer, 0, xWriteBufferLen);
+
+    const struct lfs_config * pConfig = lfs_sd_stat();
+    snprintf(pcWriteBuffer, xWriteBufferLen,
+            "\tread_size: %ld\r\n"
+            "\tprog_size: %ld\r\n"
+            "\tblock_size: %ld\r\n"
+            "\tblock_count: %ld\r\n"
+            "\tblock_cycles: %ld\r\n"
+            "\tcache_size: %ld\r\n"
+            "\tlookahead_size: %ld\r\n"
+            "\tname_max: %ld\r\n"
+            "\tfile_max: %ld\r\n"
+            "\tattr_max: %ld\r\b"
+            "\tmetadata_max: %ld\r\n"
+            "\tinline_max: %ld\r\n"
+            "\r\n",
+            pConfig->read_size, pConfig->prog_size,
+            pConfig->block_size, pConfig->block_count,
+            pConfig->block_cycles, pConfig->cache_size,
+            pConfig->lookahead_size, pConfig->name_max,
+            pConfig->file_max, pConfig->attr_max,
+            pConfig->metadata_max, pConfig->inline_max);
+
+    return 0;
+}
+
+
+static const CLI_Command_Definition_t lfs_cmd_stat = {
+    "lfs_stat",
+    "lfs_stat:\r\n"
+    "\tStat of LFS\r\n\r\n",
+    FuncLfsCmdStat,
+    0
+};
+
+
 static BaseType_t FuncLfsCmdMount(
                 char *pcWriteBuffer,
                 size_t xWriteBufferLen,
@@ -440,6 +482,7 @@ void TEST_LFS_Init(void)
     }
 
     FreeRTOS_CLIRegisterCommand(&lfs_cmd_format);
+    FreeRTOS_CLIRegisterCommand(&lfs_cmd_stat);
     FreeRTOS_CLIRegisterCommand(&lfs_cmd_mount);
     FreeRTOS_CLIRegisterCommand(&lfs_cmd_umount);
     FreeRTOS_CLIRegisterCommand(&lfs_cmd_df);

@@ -283,7 +283,7 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 
     for(id = 0; id < CONFIG_CAN_COUNT; id++) {
         me = &can[id];
-        if(me->FDCAN_handle.Instance == DEFAULT_FDCAN[id]) {
+        if(me->FDCAN_handle.Instance == hfdcan->Instance) {
             break;
         }
     }
@@ -297,7 +297,6 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
         /* Retrieve Rx messages from RX FIFO0 */
         if(HAL_OK == HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &(rxElem.header), &(rxElem.data[0]))) {
             if(pdTRUE == xQueueSendFromISR(me->rxQueueHandle, &rxElem, &xHigherPriorityTaskWoken)) {
-                me->debugRxCount++;
                 xTaskNotifyFromISR(me->task, CAN_RX_BIT, eSetBits, &xHigherPriorityTaskWoken);
             } else {
                 /// TODO: notify that CAN Rx Queue has overrun!!!
@@ -324,7 +323,7 @@ void HAL_FDCAN_TxFifoEmptyCallback(FDCAN_HandleTypeDef *hfdcan)
 
     for(id = 0; id < CONFIG_CAN_COUNT; id++) {
         me = &can[id];
-        if(me->FDCAN_handle.Instance == DEFAULT_FDCAN[id]) {
+        if(me->FDCAN_handle.Instance == hfdcan->Instance) {
             break;
         }
     }
@@ -409,7 +408,7 @@ void BSP_CAN_init(void)
         me->FDCAN_handle.Init.ClockDivider = FDCAN_CLOCK_DIV1;
         me->FDCAN_handle.Init.FrameFormat = DEFAULT_FRAME_FORMAT[i];
         me->FDCAN_handle.Init.Mode = FDCAN_MODE_NORMAL;
-        me->FDCAN_handle.Init.AutoRetransmission = DISABLE;
+        me->FDCAN_handle.Init.AutoRetransmission = ENABLE;
         me->FDCAN_handle.Init.TransmitPause = DISABLE;
         me->FDCAN_handle.Init.ProtocolException = DISABLE;
         me->data_bps = DEFAULT_DATA_BITRATE[i];
@@ -516,7 +515,8 @@ bool BSP_CAN_start(const CAN_ID_T id)
 
         if(HAL_OK != HAL_FDCAN_ActivateNotification(
                             &(me->FDCAN_handle),
-                            FDCAN_IT_RX_FIFO0_NEW_MESSAGE | FDCAN_IT_TX_FIFO_EMPTY,
+                            (FDCAN_IT_RX_FIFO0_NEW_MESSAGE | FDCAN_IT_TX_FIFO_EMPTY |
+                            FDCAN_IT_ERROR_PASSIVE | FDCAN_IT_ERROR_WARNING | FDCAN_IT_BUS_OFF),
                             FDCAN_TX_BUFFER0)) {
             CAN_LOG_DEBUG("HAL_FDCAN_ActivateNotification error!\r\n");
             return false;

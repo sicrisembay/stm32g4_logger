@@ -32,7 +32,7 @@ typedef enum {
     CAN_TWO,
 #endif
 #if (CONFIG_CAN_COUNT >= 3)
-    CAN_TRHEE,
+    CAN_THREE,
 #endif
     N_CAN_ID
 } CAN_ID_T;

@@ -3,9 +3,15 @@ menuconfig USE_SDCARD
     bool "SD Card"
     
     if USE_SDCARD
-        config SDCARD_HAS_DETECT_PIN
+        menuconfig SDCARD_HAS_DETECT_PIN
             bool "Detect Pin"
             default y
+            if SDCARD_HAS_DETECT_PIN
+                config SDCARD_DETECT_ACTIVE_HIGH
+                    bool "Active high detection"
+                    default n
+            endif # SDCARD_HAS_DETECT_PIN
+
         choice
             prompt "SPI clock frequency"
             default SDCARD_SPI_FREQ_1250MHZ

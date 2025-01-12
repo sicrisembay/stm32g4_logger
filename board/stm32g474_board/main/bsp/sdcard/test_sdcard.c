@@ -187,7 +187,7 @@ static BaseType_t CmdSdCardCsd(
                 "\tCard Size: %ld MB\r\n"
                 "\r\n",
                 (csdVersion + 1),
-                c_size,
+                c_size * 1024,
                 size_mb);
         internalState++;
         return 1;
@@ -270,11 +270,14 @@ static BaseType_t CmdSdCardReadOne(
     int32_t i32Temp;
     uint32_t address;
     char tmpStr[16];
+    char tmpAscii[16+1];
     char * ptrStrParam;
     int32_t strParamLen;
     char * ptrEnd;
 
     memset(pcWriteBuffer, 0, xWriteBufferLen);
+    memset(tmpStr, 0, sizeof(tmpStr));
+    memset(tmpAscii, 0, sizeof(tmpAscii));
 
     if(internalState == 0) {
         /* Get parameter 1 (block address) */
@@ -304,9 +307,16 @@ static BaseType_t CmdSdCardReadOne(
         snprintf(pcWriteBuffer, xWriteBufferLen, "\t");
         while(printIdx < sizeof(blockData)) {
             snprintf(tmpStr, 8, "%02x ", blockData[printIdx]);
+            if((blockData[printIdx] >= 0x20) && (blockData[printIdx] <= 0x7E)) {
+                tmpAscii[printIdx % 16] = blockData[printIdx];
+            } else {
+                tmpAscii[printIdx % 16] = 0x20;
+            }
             strcat(pcWriteBuffer, tmpStr);
             printIdx++;
             if((printIdx % 16) == 0) {
+                strcat(pcWriteBuffer, " ");
+                strcat(pcWriteBuffer, tmpAscii);
                 strcat(pcWriteBuffer, "\r\n");
                 return 1;
             }
