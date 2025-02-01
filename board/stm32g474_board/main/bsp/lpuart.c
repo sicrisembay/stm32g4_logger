@@ -105,10 +105,12 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t size)
             if(nByteToWrite > available) {
                 nByteToWrite = available;
             }
-            xStreamBufferSendFromISR(uart.rxStreamHandle,
-                                     &(uart.rxDmaBuffer[old_pos]),
-                                     nByteToWrite,
-                                     &higherPriorityTaskWoken);
+            if(nByteToWrite > 0) {
+                xStreamBufferSendFromISR(uart.rxStreamHandle,
+                                         &(uart.rxDmaBuffer[old_pos]),
+                                         nByteToWrite,
+                                         &higherPriorityTaskWoken);
+            }
             available -= nByteToWrite;
             nByteToWrite = size;
             if(nByteToWrite > 0) {
