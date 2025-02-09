@@ -12,9 +12,18 @@ menuconfig USE_SDCARD
                     default n
             endif # SDCARD_HAS_DETECT_PIN
 
+        menuconfig SDCARD_HAS_POWER_SWITCH
+            bool "Power switch"
+            default y
+            if SDCARD_HAS_POWER_SWITCH
+                config SDCARD_POWER_SWITCH_ACTIVE_HIGH
+                    bool "Active high"
+                    default y
+            endif # SDCARD_HAS_POWER_SWITCH
+
         choice
             prompt "SPI clock frequency"
-            default SDCARD_SPI_FREQ_1250MHZ
+            default SDCARD_SPI_FREQ_1250KHZ
             config SDCARD_SPI_FREQ_20MHZ
                 bool "20MHz"
             config SDCARD_SPI_FREQ_10MHZ

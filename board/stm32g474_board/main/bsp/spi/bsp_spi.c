@@ -117,7 +117,7 @@ static void SPI_ManagerTask(void * pvParam)
                 continue;
             }
 
-            LL_SPI_Disable(SPI1);
+//            LL_SPI_Disable(SPI1);
             /*
              * Update SPI clock
              */
@@ -280,7 +280,7 @@ void BSP_SPI_init(void)
     /* PA5   ------> SPI1_SCK */
     GPIO_InitStruct.Pin = LL_GPIO_PIN_5;
     GPIO_InitStruct.Mode = LL_GPIO_MODE_ALTERNATE;
-    GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_LOW;
+    GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_VERY_HIGH;
     GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
     GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
     GPIO_InitStruct.Alternate = LL_GPIO_AF_5;
@@ -288,16 +288,16 @@ void BSP_SPI_init(void)
     /* PA6   ------> SPI1_MISO */
     GPIO_InitStruct.Pin = LL_GPIO_PIN_6;
     GPIO_InitStruct.Mode = LL_GPIO_MODE_ALTERNATE;
-    GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_LOW;
-    GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
+    GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_VERY_HIGH;
+    GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_OPENDRAIN;
     GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
     GPIO_InitStruct.Alternate = LL_GPIO_AF_5;
     LL_GPIO_Init(GPIOA, &GPIO_InitStruct);
     /* PA7   ------> SPI1_MOSI */
     GPIO_InitStruct.Pin = LL_GPIO_PIN_7;
     GPIO_InitStruct.Mode = LL_GPIO_MODE_ALTERNATE;
-    GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_LOW;
-    GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
+    GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_VERY_HIGH;
+    GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_OPENDRAIN;
     GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
     GPIO_InitStruct.Alternate = LL_GPIO_AF_5;
     LL_GPIO_Init(GPIOA, &GPIO_InitStruct);

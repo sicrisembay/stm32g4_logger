@@ -14,10 +14,11 @@
 #include "lfs.h"
 #include "lfs_sd.h"
 #include "sdcard.h"
+#include "cli.h"
 
 #define LFS_LOOKAHEAD_SIZE          (8192)
 #define LFS_SD_PRINT_DEBUG_ENABLE   (1)
-#define LFS_SD_PRINTF(x, ...)       (LFS_SD_PRINT_DEBUG_ENABLE != 0) ? LPUART_printf("lfs_sd: "x, ##__VA_ARGS__) : (void)0
+#define LFS_SD_PRINTF(x, ...)       (LFS_SD_PRINT_DEBUG_ENABLE != 0) ? CLI_printf("lfs_sd: "x, ##__VA_ARGS__) : (void)0
 
 static struct lfs_config cfg = {0};
 static struct lfs_file_config cfgFile = {0};

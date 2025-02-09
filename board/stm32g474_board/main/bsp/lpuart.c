@@ -50,6 +50,8 @@ typedef struct {
     char printBuffer[PRINTF_BUFFER_SIZE];
     SemaphoreHandle_t printfMutex;
     StaticSemaphore_t printfStruct;
+    void * callback_object;
+    void (*callback_fn)(void * object, size_t len);
 } uart_t;
 
 static bool bInit = false;
@@ -127,6 +129,10 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t size)
     }
 
     old_pos = size;
+    if(uart.callback_fn != NULL) {
+        const size_t len = xStreamBufferBytesAvailable(uart.rxStreamHandle);
+        uart.callback_fn(uart.callback_object, len);
+    }
     portYIELD_FROM_ISR(higherPriorityTaskWoken);
 }
 
@@ -405,9 +411,9 @@ int32_t LPUART_printf(const char * format, ...)
     }
 
     if(bInsideISR) {
-        mutexGetSuccess = xSemaphoreTakeFromISR(uart.rxReaderMutex, &higherPriorityTaskWoken);
+        mutexGetSuccess = xSemaphoreTakeFromISR(uart.printfMutex, &higherPriorityTaskWoken);
     } else {
-        mutexGetSuccess = xSemaphoreTake(uart.rxReaderMutex, DEFAULT_BLOCK_WAIT_MS / portTICK_PERIOD_MS);
+        mutexGetSuccess = xSemaphoreTake(uart.printfMutex, DEFAULT_BLOCK_WAIT_MS / portTICK_PERIOD_MS);
     }
 
     if(mutexGetSuccess == pdFALSE) {
@@ -419,12 +425,18 @@ int32_t LPUART_printf(const char * format, ...)
     va_end(val);
 
     if(bInsideISR) {
-        xSemaphoreGiveFromISR(uart.rxReaderMutex, &higherPriorityTaskWoken);
+        xSemaphoreGiveFromISR(uart.printfMutex, &higherPriorityTaskWoken);
         portYIELD_FROM_ISR(higherPriorityTaskWoken);
     } else {
-        xSemaphoreGive(uart.rxReaderMutex);
+        xSemaphoreGive(uart.printfMutex);
     }
 
     return(LPUART_Send((uint8_t *)uart.printBuffer, rv));
 }
 
+
+void LPUART_register_receive_cb(void * object, void (*cb)(void * object, size_t len))
+{
+    uart.callback_object = object;
+    uart.callback_fn = cb;
+}

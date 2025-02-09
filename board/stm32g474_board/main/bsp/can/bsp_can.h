@@ -17,10 +17,10 @@
 #include "stdbool.h"
 
 #define TAG_CAN "can"
-#define CAN_LOG_DEBUG(x, ...)   (CONFIG_CAN_LOG_LEVEL <= CONFIG_LOG_LEVEL_DEBUG) ? LPUART_printf("D (%d) " TAG_CAN ": " x, xTaskGetTickCount(), ##__VA_ARGS__) : (void)0
-#define CAN_LOG_INFO(x, ...)    (CONFIG_CAN_LOG_LEVEL <= CONFIG_LOG_LEVEL_INFO) ? LPUART_printf("I (%d) " TAG_CAN ": " x, xTaskGetTickCount(), ##__VA_ARGS__) : (void)0
-#define CAN_LOG_WARN(x, ...)    (CONFIG_CAN_LOG_LEVEL <= CONFIG_LOG_LEVEL_WARNING) ? LPUART_printf("W (%d) " TAG_CAN ": " x, xTaskGetTickCount(), ##__VA_ARGS__) : (void)0
-#define CAN_LOG_ERROR(x, ...)   (CONFIG_CAN_LOG_LEVEL <= CONFIG_LOG_LEVEL_ERROR) ? LPUART_printf("E (%d) " TAG_CAN ": " x, xTaskGetTickCount(), ##__VA_ARGS__) : (void)0
+#define CAN_LOG_DEBUG(x, ...)   (CONFIG_CAN_LOG_LEVEL <= CONFIG_LOG_LEVEL_DEBUG) ? CLI_printf("D (%d) " TAG_CAN ": " x, xTaskGetTickCount(), ##__VA_ARGS__) : (void)0
+#define CAN_LOG_INFO(x, ...)    (CONFIG_CAN_LOG_LEVEL <= CONFIG_LOG_LEVEL_INFO) ? CLI_printf("I (%d) " TAG_CAN ": " x, xTaskGetTickCount(), ##__VA_ARGS__) : (void)0
+#define CAN_LOG_WARN(x, ...)    (CONFIG_CAN_LOG_LEVEL <= CONFIG_LOG_LEVEL_WARNING) ? CLI_printf("W (%d) " TAG_CAN ": " x, xTaskGetTickCount(), ##__VA_ARGS__) : (void)0
+#define CAN_LOG_ERROR(x, ...)   (CONFIG_CAN_LOG_LEVEL <= CONFIG_LOG_LEVEL_ERROR) ? CLI_printf("E (%d) " TAG_CAN ": " x, xTaskGetTickCount(), ##__VA_ARGS__) : (void)0
 
 #define CONFIG_CANFD_DATA_SIZE      (64)
 

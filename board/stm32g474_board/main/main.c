@@ -30,17 +30,17 @@ static void mainTask(void * pvParam)
     while(1) {
         ret = SDCARD_Init();
         if(SDCARD_ERR_NONE == ret) {
-            LPUART_printf("SDCARD_Init OK\r\n");
+            CLI_printf("SDCARD_Init OK\r\n");
             break;
         } else {
             retry++;
             if(retry < 2) {
-                LPUART_printf("SDCARD_Init return %d\r\nRetrying...\r\n", ret);
+                CLI_printf("SDCARD_Init return %d\r\nRetrying...\r\n", ret);
                 vTaskDelay(10);
 
             } else {
-                LPUART_printf("SDCARD_Init failed!\r\n");
-                vTaskDelete(taskHandle_main);
+                CLI_printf("SDCARD_Init failed!\r\n");
+                break;
             }
         }
     }
@@ -49,8 +49,6 @@ static void mainTask(void * pvParam)
 #if CONFIG_TEST_LFS_SD
     TEST_LFS_Init();
 #endif /* CONFIG_TEST_LFS_SD */
-
-    usb_device_init();
 
     xLastWakeTime = xTaskGetTickCount();
     while(1) {
@@ -61,6 +59,7 @@ static void mainTask(void * pvParam)
 int main(void)
 {
     board_init();
+    usb_device_init();
     taskHandle_main = xTaskCreateStatic(mainTask, "main", MAIN_TASK_STACK_SIZE,
             (void *)0, MAIN_TASK_PRIORITY, taskStackStorage, &taskStruct_main);
     configASSERT(NULL != taskHandle_main);

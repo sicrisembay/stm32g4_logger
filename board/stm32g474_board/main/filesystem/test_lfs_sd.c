@@ -450,7 +450,7 @@ static BaseType_t FuncLfsCmdRm(
     }
     if(strParamLen > (LFS_SD_MAX_PATHNAME_LENGTH - 1)) {
         snprintf(pcWriteBuffer, xWriteBufferLen,
-                "\tError: <path> length exceeds %ld\r\n\r\n",
+                "\tError: <path> length exceeds %d\r\n\r\n",
                 LFS_SD_MAX_PATHNAME_LENGTH);
         return 0;
     }

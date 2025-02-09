@@ -64,11 +64,11 @@ typedef struct {
 
 static bool bInit = false;
 static CAN_T can[N_CAN_ID];
-static StackType_t taskStack[N_CAN_ID][CONFIG_CAN_TASK_STACK_SIZE];
+static StackType_t canTaskStack[N_CAN_ID][CONFIG_CAN_TASK_STACK_SIZE];
 static uint8_t txQueueSto[N_CAN_ID][CONFIG_CAN_TX_Q_LEN * CONFIG_CAN_TX_ELEM_SIZE];
 static uint8_t rxQueueSto[N_CAN_ID][CONFIG_CAN_RX_Q_LEN * CONFIG_CAN_RX_ELEM_SIZE];
 
-static const uint32_t const DLC_TO_BYTES[16] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 12,
+static const uint32_t DLC_TO_BYTES[16] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 12,
                     16, 20, 24, 32, 48, 64};
 
 /*
@@ -245,9 +245,6 @@ static void can_task(void * pvParam)
                 while(pdTRUE == xQueueReceive(me->rxQueueHandle,
                         &rxElem, 0)) {
                     me->debugRxCount++;
-                    CAN_LOG_DEBUG("id: 0x%03lx dlc: %02d\r\n",
-                            rxElem.header.Identifier,
-                            DLC_TO_BYTES[rxElem.header.DataLength]);
                     /*
                      * [0]     : tag (0xFF)
                      * [1..2]  : length
@@ -371,19 +368,12 @@ void BSP_CAN_init(void)
     HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 #endif
 #if (CONFIG_CAN_COUNT >= 3)
-    GPIO_InitStruct.Pin = GPIO_PIN_15;
+    GPIO_InitStruct.Pin = GPIO_PIN_8|GPIO_PIN_15;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
     GPIO_InitStruct.Alternate = GPIO_AF11_FDCAN3;
     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-    GPIO_InitStruct.Pin = GPIO_PIN_3;
-    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-    GPIO_InitStruct.Alternate = GPIO_AF11_FDCAN3;
-    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 #endif
 
     for(uint32_t i = 0; i < N_CAN_ID; i++) {
@@ -440,7 +430,7 @@ void BSP_CAN_init(void)
                             CONFIG_CAN_TASK_STACK_SIZE,
                             (void *)me,
                             CONFIG_CAN_TASK_PRIORITY,
-                            &(taskStack[i][0]),
+                            &(canTaskStack[i][0]),
                             &(me->taskStruct));
         configASSERT(me->task != NULL);
     }

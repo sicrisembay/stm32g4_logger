@@ -21,7 +21,7 @@
 #if CONFIG_USE_SDCARD
 
 #define SD_PRINT_DEBUG_ENABLE   (1)
-#define SD_PRINTF(x, ...)       (SD_PRINT_DEBUG_ENABLE != 0) ? LPUART_printf(x, ##__VA_ARGS__) : (void)0
+#define SD_PRINTF(x, ...)       (SD_PRINT_DEBUG_ENABLE != 0) ? CLI_printf(x, ##__VA_ARGS__) : (void)0
 
 #define SD_SPI_PORT             SPI1
 #define SD_CS_Pin               LL_GPIO_PIN_4
@@ -29,6 +29,9 @@
 
 #define SD_DETECT_Pin           LL_GPIO_PIN_4
 #define SD_DETECT_Port          GPIOC
+
+#define SD_POWER_SWITCH_Pin     LL_GPIO_PIN_5
+#define SD_POWER_SWITCH_Port    GPIOC
 
 #define SD_DEFAULT_TIMEOUT      (100)
 #define SD_WAIT_BUSY_TIMEOUT    (1000)
@@ -58,6 +61,25 @@ void SD_ChipSelect(bool bSelect)
     }
 }
 
+
+#if CONFIG_SDCARD_HAS_POWER_SWITCH
+void SD_SetPowerState(bool bOn)
+{
+#if CONFIG_SDCARD_POWER_SWITCH_ACTIVE_HIGH
+    if(bOn) {
+        LL_GPIO_SetOutputPin(SD_POWER_SWITCH_Port, SD_POWER_SWITCH_Pin);
+    } else {
+        LL_GPIO_ResetOutputPin(SD_POWER_SWITCH_Port, SD_POWER_SWITCH_Pin);
+    }
+#else
+    if(bOn) {
+        LL_GPIO_ResetOutputPin(SD_POWER_SWITCH_Port, SD_POWER_SWITCH_Pin);
+    } else {
+        LL_GPIO_SetOutputPin(SD_POWER_SWITCH_Port, SD_POWER_SWITCH_Pin);
+    }
+#endif
+}
+#endif /* CONFIG_SDCARD_HAS_POWER_SWITCH */
 
 /*
 R1: 0abcdefg
@@ -293,6 +315,20 @@ int32_t SDCARD_Init(void)
     LL_AHB2_GRP1_EnableClock(LL_AHB2_GRP1_PERIPH_GPIOA);
     LL_AHB2_GRP1_EnableClock(LL_AHB2_GRP1_PERIPH_GPIOC);
 
+#if CONFIG_SDCARD_HAS_POWER_SWITCH
+    /*
+     * Power Switch
+     */
+    LL_GPIO_ResetOutputPin(SD_POWER_SWITCH_Port, SD_POWER_SWITCH_Pin);
+    LL_GPIO_StructInit(&GPIO_InitStruct);
+    GPIO_InitStruct.Pin = SD_POWER_SWITCH_Pin;
+    GPIO_InitStruct.Mode = LL_GPIO_MODE_OUTPUT;
+    GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_LOW;
+    GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
+    GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
+    LL_GPIO_Init(SD_POWER_SWITCH_Port, &GPIO_InitStruct);
+#endif /* CONFIG_SDCARD_HAS_POWER_SWITCH */
+
     BSP_SPI_init();
 
     /*
@@ -302,7 +338,7 @@ int32_t SDCARD_Init(void)
     GPIO_InitStruct.Pin = SD_CS_Pin;
     GPIO_InitStruct.Mode = LL_GPIO_MODE_OUTPUT;
     GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_LOW;
-    GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
+    GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_OPENDRAIN;
     GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
     LL_GPIO_Init(SD_CS_Port, &GPIO_InitStruct);
     SD_ChipSelect(false);
@@ -335,6 +371,12 @@ int32_t SDCARD_Init(void)
         }
     }
 #endif /* CONFIG_SDCARD_HAS_DETECT_PIN */
+
+#if CONFIG_SDCARD_HAS_POWER_SWITCH
+    SD_SetPowerState(true);
+    vTaskDelay(500/portTICK_PERIOD_MS);
+#endif /* CONFIG_SDCARD_HAS_POWER_SWITCH */
+
     /*
      * Semaphore for synchronization
      */

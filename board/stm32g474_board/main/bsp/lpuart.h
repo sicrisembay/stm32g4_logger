@@ -73,4 +73,7 @@ int32_t LPUART_Receive(uint8_t * buf, const uint32_t len);
 
 int32_t LPUART_printf(const char * format, ...);
 
+void LPUART_register_receive_cb(void * object,
+            void (*cb)(void * object, size_t len));
+
 #endif /* BSP_LPUART_H_ */

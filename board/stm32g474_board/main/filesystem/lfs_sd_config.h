@@ -39,7 +39,7 @@
 #include "logger_conf.h"
 #include "FreeRTOS.h"
 #include "task.h"
-#include "lpuart.h"
+#include "cli.h"
 
 #define LFS_THREADSAFE      1
 #define LFS_NAME_MAX        255
@@ -48,7 +48,7 @@
 #ifndef LFS_TRACE
 #ifdef LFS_YES_TRACE
 #define LFS_TRACE_(fmt, ...) \
-    LPUART_printf("  %s:%d:trace: " fmt "%s\r\n", __FILE_NAME__, __LINE__, __VA_ARGS__)
+    CLI_printf("  %s:%d:trace: " fmt "%s\r\n", __FILE_NAME__, __LINE__, __VA_ARGS__)
 #define LFS_TRACE(...) LFS_TRACE_(__VA_ARGS__, "")
 #else
 #define LFS_TRACE(...)
@@ -58,7 +58,7 @@
 #ifndef LFS_DEBUG
 #ifndef LFS_NO_DEBUG
 #define LFS_DEBUG_(fmt, ...) \
-    LPUART_printf("  %s:%d:debug: " fmt "%s\r\n", __FILE_NAME__, __LINE__, __VA_ARGS__)
+    CLI_printf("  %s:%d:debug: " fmt "%s\r\n", __FILE_NAME__, __LINE__, __VA_ARGS__)
 #define LFS_DEBUG(...) LFS_DEBUG_(__VA_ARGS__, "")
 #else
 #define LFS_DEBUG(...)
@@ -68,7 +68,7 @@
 #ifndef LFS_WARN
 #ifndef LFS_NO_WARN
 #define LFS_WARN_(fmt, ...) \
-    LPUART_printf("  %s:%d:warn: " fmt "%s\r\n", __FILE_NAME__, __LINE__, __VA_ARGS__)
+    CLI_printf("  %s:%d:warn: " fmt "%s\r\n", __FILE_NAME__, __LINE__, __VA_ARGS__)
 #define LFS_WARN(...) LFS_WARN_(__VA_ARGS__, "")
 #else
 #define LFS_WARN(...)
@@ -78,7 +78,7 @@
 #ifndef LFS_ERROR
 #ifndef LFS_NO_ERROR
 #define LFS_ERROR_(fmt, ...) \
-    LPUART_printf("  %s:%d:error: " fmt "%s\r\n", __FILE_NAME__, __LINE__, __VA_ARGS__)
+    CLI_printf("  %s:%d:error: " fmt "%s\r\n", __FILE_NAME__, __LINE__, __VA_ARGS__)
 #define LFS_ERROR(...) LFS_ERROR_(__VA_ARGS__, "")
 #else
 #define LFS_ERROR(...)
