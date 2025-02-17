@@ -316,17 +316,22 @@ int32_t SDCARD_Init(void)
     LL_AHB2_GRP1_EnableClock(LL_AHB2_GRP1_PERIPH_GPIOC);
 
 #if CONFIG_SDCARD_HAS_POWER_SWITCH
-    /*
-     * Power Switch
-     */
-    LL_GPIO_ResetOutputPin(SD_POWER_SWITCH_Port, SD_POWER_SWITCH_Pin);
-    LL_GPIO_StructInit(&GPIO_InitStruct);
-    GPIO_InitStruct.Pin = SD_POWER_SWITCH_Pin;
-    GPIO_InitStruct.Mode = LL_GPIO_MODE_OUTPUT;
-    GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_LOW;
-    GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
-    GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
-    LL_GPIO_Init(SD_POWER_SWITCH_Port, &GPIO_InitStruct);
+    static bool initPSonce = false;
+    if(initPSonce != true) {
+        initPSonce = true;
+        /*
+         * Power Switch
+         * Default: ON
+         */
+        LL_GPIO_SetOutputPin(SD_POWER_SWITCH_Port, SD_POWER_SWITCH_Pin);
+        LL_GPIO_StructInit(&GPIO_InitStruct);
+        GPIO_InitStruct.Pin = SD_POWER_SWITCH_Pin;
+        GPIO_InitStruct.Mode = LL_GPIO_MODE_OUTPUT;
+        GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_LOW;
+        GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
+        GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
+        LL_GPIO_Init(SD_POWER_SWITCH_Port, &GPIO_InitStruct);
+    }
 #endif /* CONFIG_SDCARD_HAS_POWER_SWITCH */
 
     BSP_SPI_init();
@@ -337,7 +342,7 @@ int32_t SDCARD_Init(void)
     LL_GPIO_StructInit(&GPIO_InitStruct);
     GPIO_InitStruct.Pin = SD_CS_Pin;
     GPIO_InitStruct.Mode = LL_GPIO_MODE_OUTPUT;
-    GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_LOW;
+    GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_HIGH;
     GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_OPENDRAIN;
     GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
     LL_GPIO_Init(SD_CS_Port, &GPIO_InitStruct);
@@ -362,8 +367,13 @@ int32_t SDCARD_Init(void)
             retry++;
             vTaskDelay(10);
             if(retry >= 10) {
-                /* Card not detected.  Hot plug is not supported */
+                /* Card not detected.  Hot plug is not supported yet */
                 SD_PRINTF("SD Card not detected!\r\n");
+#if CONFIG_SDCARD_HAS_POWER_SWITCH
+                /* Switch OFF */
+                SD_SetPowerState(false);
+#endif /* CONFIG_SDCARD_HAS_POWER_SWITCH */
+
                 return SDCARD_ERR_NOT_PRESENT;
             }
         } else {
@@ -371,11 +381,6 @@ int32_t SDCARD_Init(void)
         }
     }
 #endif /* CONFIG_SDCARD_HAS_DETECT_PIN */
-
-#if CONFIG_SDCARD_HAS_POWER_SWITCH
-    SD_SetPowerState(true);
-    vTaskDelay(500/portTICK_PERIOD_MS);
-#endif /* CONFIG_SDCARD_HAS_POWER_SWITCH */
 
     /*
      * Semaphore for synchronization
@@ -386,7 +391,7 @@ int32_t SDCARD_Init(void)
      * Step 0.
      *   Add delay to make sure the 3.3V has stabilized
      */
-    vTaskDelay(200/portTICK_PERIOD_MS);
+    vTaskDelay(500/portTICK_PERIOD_MS);
     /*
      * Step 1.
      *   Set DI and CS high and apply 74 or more clock pulses to SCLK. Without this
@@ -430,14 +435,16 @@ int32_t SDCARD_Init(void)
         SD_ChipSelect(false);
         return ret;
     }
+    vTaskDelay(10);
     r1 = SDCARD_ReadR1();
     if(r1 != 0x01) {
         /* Toggle CS */
         SD_ChipSelect(false);
-        vTaskDelay(1);
+        vTaskDelay(10);
         SD_ChipSelect(true);
         /* Second CMD0 */
         ret = SDCARD_SendCMD0();
+        vTaskDelay(10);
         if(SDCARD_ERR_NONE != ret) {
             SD_PRINTF("SD Init  Error %d\r\n", __LINE__);
             SD_ChipSelect(false);
