@@ -10,6 +10,7 @@
 #include "bsp/sdcard/sdcard.h"
 #include "bsp/board_api.h"
 #include "bsp/lpuart.h"
+#include "usb_device.h"
 #include "cli.h"
 
 #define MAIN_TASK_STACK_SIZE        (512)

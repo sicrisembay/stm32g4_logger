@@ -14,6 +14,7 @@
 #include "bsp/board_api.h"
 #include "main.h"
 #include "cli.h"
+#include "test_usb_msc.h"
 
 #define USB_DEVICE_STACK_SIZE           (384)
 #define USB_CLASS_STACK_SIZE            (256)
@@ -117,6 +118,8 @@ static void usb_device_task(void * pxParam)
     if (board_init_after_tusb) {
         board_init_after_tusb();
     }
+
+    TEST_USB_MSC_Init();
 
     // RTOS forever loop
     while (1) {

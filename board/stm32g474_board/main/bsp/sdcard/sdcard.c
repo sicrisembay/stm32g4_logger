@@ -43,6 +43,7 @@ static StaticSemaphore_t semStruct;
 static uint8_t block_data[SDCARD_BLOCK_SIZE];
 
 typedef struct {
+    bool card_info_available;
     uint8_t csd_version;
     uint32_t max_block_count;   // number of 512-byte block
     uint32_t sector_size;       // Size of erasable sector in bytes
@@ -50,6 +51,43 @@ typedef struct {
 } SDCARD_T;
 
 static SDCARD_T sdcard = {0};
+static uint8_t CRCTable[256];
+
+static void GenerateCRCTable()
+{
+    int i;
+    int j;
+    uint8_t CRCPoly = 0x89;  // the value of our CRC-7 polynomial
+
+    // generate a table value for all 256 possible byte values
+    for (i = 0; i < 256; ++i) {
+        CRCTable[i] = (i & 0x80) ? i ^ CRCPoly : i;
+        for (j = 1; j < 8; ++j) {
+            CRCTable[i] <<= 1;
+            if (CRCTable[i] & 0x80) {
+                CRCTable[i] ^= CRCPoly;
+            }
+        }
+    }
+}
+
+static uint8_t calculate_crc(uint8_t crc, uint8_t byte)
+{
+    return CRCTable[(crc << 1) ^ byte];
+}
+
+
+static uint8_t get_crc(uint8_t * message, int length)
+{
+    int i;
+    uint8_t crc = 0;
+
+    for (i = 0; i < length; ++i) {
+        crc = calculate_crc(crc, message[i]);
+    }
+  return crc;
+}
+
 
 void SD_ChipSelect(bool bSelect)
 {
@@ -299,6 +337,8 @@ int32_t SDCARD_Init(void)
     int8_t r1;
     uint8_t retry;
 
+    GenerateCRCTable();
+
     /*
      * Note: This must be only called after scheduler has started.
      */
@@ -308,7 +348,7 @@ int32_t SDCARD_Init(void)
 
     LL_GPIO_InitTypeDef GPIO_InitStruct = {0};
 
-    if(bInit == true) {
+    if((bInit == true) && (sdcard.card_info_available == true)) {
         return SDCARD_ERR_NONE;
     }
 
@@ -731,6 +771,7 @@ int32_t SDCARD_Init(void)
         bInit = false;
         return SDCARD_ERR_UNSUPPORTED;
     }
+    sdcard.card_info_available = true;
 
     return SDCARD_ERR_NONE;
 }
@@ -739,6 +780,12 @@ int32_t SDCARD_Init(void)
 bool SDCARD_InitDone(void)
 {
     return bInit;
+}
+
+
+bool SDCARD_ready(void)
+{
+    return (bInit && sdcard.card_info_available);
 }
 
 
@@ -825,6 +872,9 @@ int32_t SDCARD_ReadOCR(uint32_t * pOCR)
             0x00, 0x00, 0x00, 0x00 /* ARG */,
             (0x7F << 1) | 1 /* CRC7 + end bit */
     };
+    uint8_t crc7 = get_crc(cmd, 5);
+    cmd[5] = (crc7 << 1) | 1;
+
     while(pdTRUE == xSemaphoreTake(semHandle, 0));
     ret = BSP_SPI_transact(cmd, cmd, sizeof(cmd), SPI_MODE0, NULL, (BSP_SPI_CLK_T)CONFIG_SDCARD_SPI_FREQ_IDX, semHandle, &status);
     if(ret != SPI_ERR_NONE) {
@@ -905,6 +955,9 @@ int32_t SDCARD_ReadCardIdentification(uint8_t * buff, size_t buffLen)
         0x00, 0x00, 0x00, 0x00, /* ARG */
         (0x7F << 1) | 1 /* CRC7 + end bit */
     };
+    uint8_t crc7 = get_crc(cmd, 5);
+    cmd[5] = (crc7 << 1) | 1;
+
     while(pdTRUE == xSemaphoreTake(semHandle, 0));  // clear any old sem
     ret = BSP_SPI_transact(cmd, cmd, sizeof(cmd), SPI_MODE0, NULL, (BSP_SPI_CLK_T)CONFIG_SDCARD_SPI_FREQ_IDX, semHandle, &status);
     if(ret != SPI_ERR_NONE) {
@@ -984,6 +1037,9 @@ int32_t SDCARD_ReadCardSpecificData(uint8_t * buff, size_t buffLen)
         0x00, 0x00, 0x00, 0x00, /* ARG */
         (0x7F << 1) | 1 /* CRC7 + end bit */
     };
+    uint8_t crc7 = get_crc(cmd, 5);
+    cmd[5] = (crc7 << 1) | 1;
+
     while(pdTRUE == xSemaphoreTake(semHandle, 0));  // clear any old sem
     ret = BSP_SPI_transact(cmd, cmd, sizeof(cmd), SPI_MODE0, NULL, (BSP_SPI_CLK_T)CONFIG_SDCARD_SPI_FREQ_IDX, semHandle, &status);
     if(ret != SPI_ERR_NONE) {
@@ -1067,6 +1123,8 @@ int32_t SDCARD_ReadSingleBlock(uint32_t blockNum, uint8_t * buff, size_t buffLen
         blockNum & 0xFF,
         (0x7F << 1) | 1 /* CRC7 + end bit */
     };
+    uint8_t crc7 = get_crc(cmd, 5);
+    cmd[5] = (crc7 << 1) | 1;
 
     while(pdTRUE == xSemaphoreTake(semHandle, 0));  // clear any old sem
     ret = BSP_SPI_transact(cmd, cmd, sizeof(cmd), SPI_MODE0, NULL, (BSP_SPI_CLK_T)CONFIG_SDCARD_SPI_FREQ_IDX, semHandle, &status);
@@ -1090,12 +1148,12 @@ int32_t SDCARD_ReadSingleBlock(uint32_t blockNum, uint8_t * buff, size_t buffLen
     if(r1 < 0) {
         SD_ChipSelect(false);
         ret = r1;
-        SD_PRINTF("SD Read Single Block Error %d\r\n", __LINE__);
+        SD_PRINTF("SD Read Single Block Error %d, R1=0x%02x\r\n", __LINE__, r1);
         return ret;
     }
     if(r1 != 0x00) {
         SD_ChipSelect(false);
-        SD_PRINTF("SD Read Single Block Error %d\r\n", __LINE__);
+        SD_PRINTF("SD Read Single Block Error %d, R1=0x%02x\r\n", __LINE__, r1);
         return SDCARD_ERR_R1;
     }
 
@@ -1157,6 +1215,8 @@ int32_t SDCARD_WriteSingleBlock(uint32_t blockNum, const uint8_t * buff,  size_t
         blockNum & 0xFF,
         (0x7F << 1) | 1 /* CRC7 + end bit */
     };
+    uint8_t crc7 = get_crc(cmd, 5);
+    cmd[5] = (crc7 << 1) | 1;
 
     while(pdTRUE == xSemaphoreTake(semHandle, 0));  // clear any old sem
     ret = BSP_SPI_transact(cmd, cmd, sizeof(cmd), SPI_MODE0, NULL, (BSP_SPI_CLK_T)CONFIG_SDCARD_SPI_FREQ_IDX, semHandle, &status);
