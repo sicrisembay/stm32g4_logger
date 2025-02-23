@@ -12,6 +12,7 @@
 #include "bsp/lpuart.h"
 #include "usb_device.h"
 #include "cli.h"
+#include "filesystem/FatFs_sd/test_fatfs_sd.h"
 
 #define MAIN_TASK_STACK_SIZE        (512)
 #define MAIN_TASK_PRIORITY          (1)
@@ -50,6 +51,12 @@ static void mainTask(void * pvParam)
 #if CONFIG_TEST_LFS_SD
     TEST_LFS_Init();
 #endif /* CONFIG_TEST_LFS_SD */
+
+#if CONFIG_TEST_FATFS_SD
+    if(SDCARD_ready()) {
+        TEST_FatFS_Init();
+    }
+#endif
 
     xLastWakeTime = xTaskGetTickCount();
     while(1) {

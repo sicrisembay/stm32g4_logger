@@ -1,0 +1,22 @@
+menu "FatFS"
+    depends on USE_FATFS_SD
+
+    menuconfig TEST_FATFS_SD
+        bool "Test commands"
+        default y
+        
+        if TEST_FATFS_SD
+            config FATFS_CMD_FORMAT
+                bool "fatfs_format"
+                default n
+            config FATFS_CMD_MOUNT
+                bool "fatfs_mount"
+                default y
+            config FATFS_CMD_INFO
+                bool "fatfs_info"
+                default y
+            config FATFS_CMD_LS
+                bool "fatfs_ls"
+                default y
+        endif # TEST_FATFS_SD
+endmenu

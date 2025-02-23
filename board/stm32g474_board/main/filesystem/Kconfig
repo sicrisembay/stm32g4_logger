@@ -1,14 +1,25 @@
-menuconfig USE_LFS_SD
+menuconfig USE_FILESYSTEM
     depends on USE_SDCARD
     bool "Filesystem"
     
-    if USE_LFS_SD
-        menu "Log"
-            config LFS_LOG_TRACE
-                bool "Trace"
-                default n
-        endmenu
-        config TEST_LFS_SD
-            bool "Test Commands"
-            default y
-    endif # USE_LFS_SD
+    if USE_FILESYSTEM
+        choice
+            prompt "Type"
+            config USE_LFS_SD
+                bool "LittleFS"
+            config USE_FATFS_SD
+                bool "FatFS"
+        endchoice
+
+        rsource "FatFs_sd/Kconfig"
+    endif # USE_FILESYSTEM
+
+#    menu "Log"
+#        config LFS_LOG_TRACE
+#            bool "Trace"
+#            default n
+#    endmenu
+#    config TEST_LFS_SD
+#        bool "Test Commands"
+#        default y
+

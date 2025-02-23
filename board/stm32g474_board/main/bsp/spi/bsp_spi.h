@@ -10,6 +10,7 @@
 
 #include "logger_conf.h"
 #include "stdbool.h"
+#include "FreeRTOS.h"
 #include "semphr.h"
 
 #if (CONFIG_APB2_PERIPH_FREQ == 40000000)

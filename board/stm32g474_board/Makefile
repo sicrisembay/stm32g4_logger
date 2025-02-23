@@ -23,8 +23,7 @@ savedefconfig:
 
 defconfig: create_folder
 	cd configs && defconfig --kconfig $(ROOT_KCONFIG) $(DEFCONFIG_FILE)
-	cd configs/generated && genconfig $(ROOT_KCONFIG) && mv config.h autoconf.h
-	configs/generated/$(AUTOCONF_POST_FILE) configs/generated/autoconf.h
+	cd $(KCONFIG_CONFIG_OUTPUT_LOC) && genconfig $(ROOT_KCONFIG) && mv config.h logger_conf.h
 
 create_folder:
 	mkdir -p configs/generated

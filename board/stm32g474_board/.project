@@ -55,6 +55,11 @@
 			<locationURI>PARENT-2-PROJECT_LOC/components/cmsis_device_g4</locationURI>
 		</link>
 		<link>
+			<name>components/filesystem</name>
+			<type>2</type>
+			<locationURI>virtual:/virtual</locationURI>
+		</link>
+		<link>
 			<name>components/littlefs</name>
 			<type>2</type>
 			<locationURI>PARENT-2-PROJECT_LOC/components/filesystem/littlefs</locationURI>
@@ -70,9 +75,39 @@
 			<locationURI>virtual:/virtual</locationURI>
 		</link>
 		<link>
+			<name>components/filesystem/FatFs</name>
+			<type>2</type>
+			<locationURI>virtual:/virtual</locationURI>
+		</link>
+		<link>
 			<name>components/tinyusb/src</name>
 			<type>2</type>
 			<locationURI>PARENT-2-PROJECT_LOC/components/tinyusb/src</locationURI>
+		</link>
+		<link>
+			<name>components/filesystem/FatFs/diskio.h</name>
+			<type>1</type>
+			<locationURI>$%7BPARENT-2-PROJECT_LOC%7D/components/filesystem/FatFs/source/diskio.h</locationURI>
+		</link>
+		<link>
+			<name>components/filesystem/FatFs/ff.c</name>
+			<type>1</type>
+			<locationURI>$%7BPARENT-2-PROJECT_LOC%7D/components/filesystem/FatFs/source/ff.c</locationURI>
+		</link>
+		<link>
+			<name>components/filesystem/FatFs/ff.h</name>
+			<type>1</type>
+			<locationURI>$%7BPARENT-2-PROJECT_LOC%7D/components/filesystem/FatFs/source/ff.h</locationURI>
+		</link>
+		<link>
+			<name>components/filesystem/FatFs/ffsystem.c</name>
+			<type>1</type>
+			<locationURI>$%7BPARENT-2-PROJECT_LOC%7D/components/filesystem/FatFs/source/ffsystem.c</locationURI>
+		</link>
+		<link>
+			<name>components/filesystem/FatFs/ffunicode.c</name>
+			<type>1</type>
+			<locationURI>$%7BPARENT-2-PROJECT_LOC%7D/components/filesystem/FatFs/source/ffunicode.c</locationURI>
 		</link>
 	</linkedResources>
 </projectDescription>

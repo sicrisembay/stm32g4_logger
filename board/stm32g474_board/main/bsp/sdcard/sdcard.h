@@ -14,6 +14,7 @@
 
 #include "stdint.h"
 #include "stdbool.h"
+#include "stddef.h"
 #include "bsp/spi/bsp_spi.h"
 
 #define SDCARD_ERR_NONE                 (0)
