@@ -1,0 +1,594 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<model version="7.0.1" links="0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.state-machine.com/qm/qm7.xsd">
+ <framework name="qpc"/>
+ <package name="logger" stereotype="0x02">
+  <package name="event" stereotype="0x01">
+   <class name="WriteLogEvt" superclass="qpc::QEvt">
+    <attribute name="buff[MAX_FRAME_LEN]" type="uint8_t" visibility="0x00" properties="0x00"/>
+    <attribute name="bufLen" type="uint16_t" visibility="0x00" properties="0x00"/>
+   </class>
+  </package>
+  <package name="sdcard" stereotype="0x02">
+   <class name="sdcard" superclass="qpc::QHsm">
+    <attribute name="parent_ao" type="QActive *" visibility="0x02" properties="0x00"/>
+    <attribute name="tick" type="uint32_t" visibility="0x00" properties="0x00"/>
+    <statechart properties="0x00">
+     <initial target="../1/2">
+      <action>QS_OBJ_DICTIONARY(&amp;l_sdcard);
+
+QS_FUN_DICTIONARY(&amp;sdcard_TOP);
+QS_FUN_DICTIONARY(&amp;sdcard_NOT_PRESENT);
+QS_FUN_DICTIONARY(&amp;sdcard_INSERTED);</action>
+      <initial_glyph conn="9,23,5,3,14">
+       <action box="0,-2,10,2"/>
+      </initial_glyph>
+     </initial>
+     <state name="TOP">
+      <tran trig="GET_OBJECT_DICTIONARY">
+       <action>(void)me;
+QS_OBJ_DICTIONARY(&amp;l_sdcard);</action>
+       <tran_glyph conn="16,10,3,-1,24">
+        <action box="0,-2,22,2"/>
+       </tran_glyph>
+      </tran>
+      <tran trig="GET_FUNC_DICTIONARY">
+       <action>(void)me;
+QS_FUN_DICTIONARY(&amp;sdcard_initial);
+QS_FUN_DICTIONARY(&amp;sdcard_TOP);
+QS_FUN_DICTIONARY(&amp;sdcard_NOT_PRESENT);
+QS_FUN_DICTIONARY(&amp;sdcard_INSERTED);</action>
+       <tran_glyph conn="16,12,3,-1,24">
+        <action box="0,-2,21,2"/>
+       </tran_glyph>
+      </tran>
+      <state name="NOT_PRESENT">
+       <entry>me-&gt;tick = 0U;</entry>
+       <tran trig="SDCARD_TICK">
+        <action>me-&gt;tick += CONFIG_SDCARD_TICK_INTERVAL_MS;</action>
+        <choice target="../../../3">
+         <guard brief="card_insert">SDCARD_is_present() &amp;&amp; SDCARD_ready()</guard>
+         <choice_glyph conn="37,24,5,1,25,20,-4">
+          <action box="2,-2,14,2"/>
+         </choice_glyph>
+        </choice>
+        <choice>
+         <guard>else</guard>
+         <choice_glyph conn="37,24,4,-1,4,8">
+          <action box="2,2,7,2"/>
+         </choice_glyph>
+        </choice>
+        <tran_glyph conn="23,24,3,-1,14">
+         <action box="0,-2,14,2"/>
+        </tran_glyph>
+       </tran>
+       <state_glyph color="1" node="23,17,35,16">
+        <entry box="0,3,6,2"/>
+       </state_glyph>
+      </state>
+      <state name="INSERTED">
+       <entry>me-&gt;tick = 0U;</entry>
+       <tran trig="SDCARD_TICK">
+        <action>me-&gt;tick += CONFIG_SDCARD_TICK_INTERVAL_MS;</action>
+        <choice target="../../../2">
+         <guard brief="card_remove">SDCARD_is_present() == false</guard>
+         <choice_glyph conn="37,46,5,1,27,-24,-6">
+          <action box="1,-2,13,2"/>
+         </choice_glyph>
+        </choice>
+        <choice>
+         <guard>else</guard>
+         <choice_glyph conn="37,46,4,-1,4,9">
+          <action box="1,2,6,2"/>
+         </choice_glyph>
+        </choice>
+        <tran_glyph conn="23,46,3,-1,14">
+         <action box="0,-2,14,2"/>
+        </tran_glyph>
+       </tran>
+       <state_glyph color="1" node="23,38,35,19">
+        <entry box="0,3,6,2"/>
+       </state_glyph>
+      </state>
+      <state_glyph node="16,2,55,59"/>
+     </state>
+     <state_diagram size="86,67"/>
+    </statechart>
+   </class>
+   <operation name="sdcard_ctor" type="QHsm *" visibility="0x00" properties="0x00">
+    <parameter name="parent_ao" type="QActive * const"/>
+    <code>sdcard * const me = &amp;l_sdcard;
+me-&gt;parent_ao = parent_ao;
+
+QHsm_ctor(&amp;me-&gt;super, Q_STATE_CAST(&amp;sdcard_initial));
+return (QHsm *)me;</code>
+   </operation>
+  </package>
+  <class name="logger" superclass="qpc::QActive">
+   <attribute name="sdcard" type="QHsm *" visibility="0x02" properties="0x00"/>
+   <attribute name="tickEvt" type="QTimeEvt" visibility="0x02" properties="0x00"/>
+   <attribute name="sdTickEvt" type="QTimeEvt" visibility="0x00" properties="0x00"/>
+   <attribute name="tick" type="uint32_t" visibility="0x02" properties="0x00"/>
+   <attribute name="file" type="FIL" visibility="0x02" properties="0x00"/>
+   <attribute name="file_index" type="uint32_t" visibility="0x02" properties="0x00"/>
+   <attribute name="logFilePath[64]" type="char" visibility="0x02" properties="0x00"/>
+   <attribute name="logFileOpen" type="bool" visibility="0x02" properties="0x00"/>
+   <statechart properties="0x00">
+    <initial target="../1">
+     <action>QS_OBJ_DICTIONARY(&amp;l_logger);
+
+QS_FUN_DICTIONARY(&amp;logger_initial);
+QS_FUN_DICTIONARY(&amp;logger_TOP);
+QS_FUN_DICTIONARY(&amp;logger_INITIALIZING);
+QS_FUN_DICTIONARY(&amp;logger_LOGGING_MODE);
+QS_FUN_DICTIONARY(&amp;logger_LOGGING_INITIALIZING);
+QS_FUN_DICTIONARY(&amp;logger_INIT_FILESYSTEM);
+QS_FUN_DICTIONARY(&amp;logger_CREATE_LOG_FILE);
+QS_FUN_DICTIONARY(&amp;logger_LOGGING_ACTIVE);
+QS_FUN_DICTIONARY(&amp;logger_USB_MSC_MODE);
+
+me-&gt;logFileOpen = false;
+memset(me-&gt;logFilePath, 0, sizeof(me-&gt;logFilePath));
+
+QTimeEvt_ctorX(&amp;me-&gt;tickEvt, &amp;me-&gt;super, LOGGER_TICK_SIG, 0U);
+QTimeEvt_ctorX(&amp;me-&gt;sdTickEvt, &amp;me-&gt;super, SDCARD_TICK_SIG, 0U);
+
+/* Inital transition of component */
+QHSM_INIT(me-&gt;sdcard, (QEvt*)0, 0);</action>
+     <initial_glyph conn="15,16,5,0,5,4">
+      <action box="0,-2,10,2"/>
+     </initial_glyph>
+    </initial>
+    <state name="TOP">
+     <entry>/* arm periodic tick timer */
+QTimeEvt_armX(&amp;me-&gt;tickEvt, CONFIG_LOGGER_TICK_INTERVAL_MS, CONFIG_LOGGER_TICK_INTERVAL_MS);
+QTimeEvt_armX(&amp;me-&gt;sdTickEvt, CONFIG_SDCARD_TICK_INTERVAL_MS, CONFIG_SDCARD_TICK_INTERVAL_MS);
+me-&gt;tick = 0;</entry>
+     <initial target="../6">
+      <initial_glyph conn="21,37,5,0,3,3">
+       <action box="0,-2,10,2"/>
+      </initial_glyph>
+     </initial>
+     <tran trig="GET_OBJECT_DICTIONARY">
+      <action>(void)me;
+QS_OBJ_DICTIONARY(&amp;l_logger);
+QHSM_DISPATCH(me-&gt;sdcard, e, 0);</action>
+      <tran_glyph conn="15,28,3,-1,22">
+       <action box="0,-2,23,2"/>
+      </tran_glyph>
+     </tran>
+     <tran trig="GET_FUNC_DICTIONARY">
+      <action>(void)me;
+QS_FUN_DICTIONARY(&amp;logger_initial);
+QS_FUN_DICTIONARY(&amp;logger_TOP);
+QS_FUN_DICTIONARY(&amp;logger_INITIALIZING);
+QS_FUN_DICTIONARY(&amp;logger_LOGGING_MODE);
+
+QHSM_DISPATCH(me-&gt;sdcard, e, 0);</action>
+      <tran_glyph conn="15,30,3,-1,22">
+       <action box="0,-2,22,2"/>
+      </tran_glyph>
+     </tran>
+     <tran trig="GET_SIGNAL_DICTIONARY">
+      <action>QHSM_DISPATCH(me-&gt;sdcard, e, 0);</action>
+      <tran_glyph conn="15,32,3,-1,22">
+       <action box="0,-2,21,2"/>
+      </tran_glyph>
+     </tran>
+     <tran trig="SDCARD_TICK">
+      <action>QHSM_DISPATCH(me-&gt;sdcard, e, 0);</action>
+      <tran_glyph conn="15,34,3,-1,22">
+       <action box="0,-2,13,2"/>
+      </tran_glyph>
+     </tran>
+     <tran trig="ERROR" target="../9">
+      <tran_glyph conn="15,173,3,3,15">
+       <action box="0,-2,10,2"/>
+      </tran_glyph>
+     </tran>
+     <state name="INITIALIZING">
+      <entry>me-&gt;tick = 0U;</entry>
+      <tran trig="LOGGER_TICK">
+       <action>me-&gt;tick += CONFIG_LOGGER_TICK_INTERVAL_MS;</action>
+       <choice target="../../../7/0/0">
+        <guard brief="sd_ready">SDCARD_InitDone() &amp;&amp; SDCARD_ready()</guard>
+        <choice_glyph conn="34,47,5,1,53,28,-16">
+         <action box="1,-2,10,2"/>
+        </choice_glyph>
+       </choice>
+       <choice>
+        <guard>else</guard>
+        <choice_glyph conn="34,47,4,-1,4,7">
+         <action box="1,2,6,2"/>
+        </choice_glyph>
+       </choice>
+       <tran_glyph conn="19,47,3,-1,15">
+        <action box="0,-2,14,2"/>
+       </tran_glyph>
+      </tran>
+      <state_glyph color="1" node="19,40,65,14">
+       <entry box="0,3,6,2"/>
+      </state_glyph>
+     </state>
+     <state name="LOGGING_MODE">
+      <entry>me-&gt;tick = 0U;</entry>
+      <state name="LOGGING_INITIALIZING">
+       <entry>QTimeEvt_disarm(&amp;me-&gt;tickEvt);
+QTimeEvt_disarm(&amp;me-&gt;sdTickEvt);</entry>
+       <exit>QTimeEvt_armX(&amp;me-&gt;tickEvt, CONFIG_LOGGER_TICK_INTERVAL_MS, CONFIG_LOGGER_TICK_INTERVAL_MS);
+QTimeEvt_armX(&amp;me-&gt;sdTickEvt, CONFIG_SDCARD_TICK_INTERVAL_MS, CONFIG_SDCARD_TICK_INTERVAL_MS);</exit>
+       <state name="INIT_FILESYSTEM">
+        <entry>FRESULT res = fatfs_sd_mount();
+if(res != FR_OK) {
+    QS_BEGIN_ID(LOGGER_DEBUG_RECORD, (void *)0);
+        QS_STR(&quot;mount failed!&quot;);
+    QS_END();
+    QEvt * pEvt = Q_NEW(QEvt, ERROR_SIG);
+    QACTIVE_POST((QActive *)me, pEvt, me);
+} else {
+    QS_BEGIN_ID(LOGGER_DEBUG_RECORD, (void *)0);
+        QS_STR(&quot;filesystem mounted&quot;);
+    QS_END();
+
+    /* Check &quot;logs&quot; directory */
+    FILINFO fno;
+    res = f_stat(&quot;logs&quot;, &amp;fno);
+
+    if (res == FR_OK) {
+        // Directory exists
+        QS_BEGIN_ID(LOGGER_DEBUG_RECORD, (void *)0);
+            QS_STR(&quot;directory found&quot;);
+        QS_END();
+        QEvt * pEvt = Q_NEW(QEvt, CREATE_LOGFILE_SIG);
+        QACTIVE_POST((QActive *)me, pEvt, me);
+    } else if (res == FR_NO_FILE) {
+        // Directory does not exist, create the said directory
+        QS_BEGIN_ID(LOGGER_DEBUG_RECORD, (void *)0);
+            QS_STR(&quot;directory not found, creating...&quot;);
+        QS_END();
+        res = f_mkdir(&quot;logs&quot;);
+        if(res == FR_OK) {
+            QS_BEGIN_ID(LOGGER_DEBUG_RECORD, (void *)0);
+                QS_STR(&quot;...sucess&quot;);
+            QS_END();
+            QEvt * pEvt = Q_NEW(QEvt, CREATE_LOGFILE_SIG);
+            QACTIVE_POST((QActive *)me, pEvt, me);
+        } else {
+            QS_BEGIN_ID(LOGGER_DEBUG_RECORD, (void *)0);
+                QS_STR(&quot;...fail&quot;);
+            QS_END();
+            QEvt * pEvt = Q_NEW(QEvt, ERROR_SIG);
+            QACTIVE_POST((QActive *)me, pEvt, me);
+        }
+    } else {
+        // An error occurred
+        QS_BEGIN_ID(LOGGER_DEBUG_RECORD, (void *)0);
+            QS_STR(&quot;Error: f_stat()&quot;);
+        QS_END();
+        QEvt * pEvt = Q_NEW(QEvt, ERROR_SIG);
+        QACTIVE_POST((QActive *)me, pEvt, me);
+    }
+}
+</entry>
+        <tran trig="CREATE_LOGFILE" target="../../1">
+         <tran_glyph conn="32,79,3,1,42,8,-3">
+          <action box="0,-2,16,2"/>
+         </tran_glyph>
+        </tran>
+        <state_glyph node="32,71,39,10">
+         <entry box="0,3,6,2"/>
+        </state_glyph>
+       </state>
+       <state name="CREATE_LOG_FILE">
+        <entry>FRESULT res = FR_OK;
+FILINFO fno;
+bool hasError = false;
+
+/* Check for index.bin */
+res = f_stat(INDEX_FILE_PATH, &amp;fno);
+if(res == FR_OK) {
+    /* index.txt found */
+    uint32_t index = 0;
+    res = f_open(&amp;me-&gt;file, INDEX_FILE_PATH, FA_OPEN_ALWAYS | FA_WRITE | FA_READ);
+    if(res == FR_OK) {
+        UINT brw;
+        res = f_read(&amp;me-&gt;file, &amp;index, 4, &amp;brw);
+        if(res != FR_OK) {
+            hasError = true;
+        } else {
+            index++;
+            me-&gt;file_index = index;
+            f_rewind(&amp;me-&gt;file);
+            res = f_write(&amp;me-&gt;file, &amp;index, 4, &amp;brw);
+            if(res != FR_OK) {
+                hasError = true;
+            }
+        }
+        f_close(&amp;me-&gt;file);
+    }
+} else if(res == FR_NO_FILE) {
+    /* create index.txt */
+    me-&gt;file_index = 0;
+    res = f_open(&amp;me-&gt;file, INDEX_FILE_PATH, FA_OPEN_ALWAYS | FA_WRITE);
+    if(res == FR_OK) {
+        UINT bw;
+        res = f_write(&amp;me-&gt;file, &amp;me-&gt;file_index, 4, &amp;bw);
+        if(res != FR_OK) {
+            hasError = true;
+        }
+        f_close(&amp;me-&gt;file);
+    }
+} else {
+    /* some other error */
+    hasError = true;
+}
+
+if(!hasError) {
+    snprintf(me-&gt;logFilePath, sizeof(me-&gt;logFilePath), &quot;logs/CanLog_%010ld.bin&quot;, me-&gt;file_index);
+    QEvt * pEvt = Q_NEW(QEvt, START_LOGGING_SIG);
+    QACTIVE_POST((QActive *)me, pEvt, me);
+} else {
+    QEvt * pEvt = Q_NEW(QEvt, ERROR_SIG);
+    QACTIVE_POST((QActive *)me, pEvt, me);
+}</entry>
+        <tran trig="START_LOGGING" target="../../../1">
+         <tran_glyph conn="32,90,3,1,49,17,-4">
+          <action box="0,-2,15,2"/>
+         </tran_glyph>
+        </tran>
+        <state_glyph node="32,83,39,10">
+         <entry box="0,3,6,2"/>
+        </state_glyph>
+       </state>
+       <state_glyph color="2" node="27,63,50,33">
+        <entry box="0,3,6,2"/>
+        <exit box="0,5,6,2"/>
+       </state_glyph>
+      </state>
+      <state name="LOGGING_ACTIVE">
+       <entry>(void)BSP_CAN_register_cb(CAN_ONE, me, can_one_rx_callback);
+(void)BSP_CAN_start(CAN_ONE);
+
+FRESULT res = f_open(&amp;me-&gt;file, me-&gt;logFilePath, FA_OPEN_APPEND | FA_WRITE);
+if(res != FR_OK) {
+    me-&gt;logFileOpen = false;
+    QS_BEGIN_ID(LOGGER_DEBUG_RECORD, (void *)0);
+        QS_STR(&quot;failed to open log file!&quot;);
+    QS_END();
+    QEvt * pEvt = Q_NEW(QEvt, ERROR_SIG);
+    QACTIVE_POST((QActive *)me, pEvt, me);
+} else {
+    me-&gt;logFileOpen = true;
+    QS_BEGIN_ID(LOGGER_DEBUG_RECORD, (void *)0);
+        QS_STR(me-&gt;logFilePath);
+    QS_END();
+}</entry>
+       <exit>(void)BSP_CAN_stop(CAN_ONE);
+me-&gt;logFileOpen = false;
+f_close(&amp;me-&gt;file);</exit>
+       <tran trig="LOGGER_TICK">
+        <action>me-&gt;tick += CONFIG_LOGGER_TICK_INTERVAL_MS;</action>
+        <choice target="../../../../8">
+         <guard brief="usb_connect">tud_connected() &amp;&amp; !tud_suspended()</guard>
+         <choice_glyph conn="43,112,5,1,47,33,-6">
+          <action box="1,-2,14,2"/>
+         </choice_glyph>
+        </choice>
+        <choice>
+         <guard>else</guard>
+         <choice_glyph conn="43,112,4,-1,4,8">
+          <action box="1,2,10,2"/>
+         </choice_glyph>
+        </choice>
+        <tran_glyph conn="27,112,3,-1,16">
+         <action box="0,-2,15,2"/>
+        </tran_glyph>
+       </tran>
+       <tran trig="CAN_RECEIVE">
+        <action>uint32_t bw = 0;
+const FRESULT res = f_write(&amp;me-&gt;file, 
+            Q_EVT_CAST(WriteLogEvt)-&gt;buff,
+            Q_EVT_CAST(WriteLogEvt)-&gt;bufLen, (UINT*)&amp;bw);
+
+if(res != FR_OK) {
+    QEvt * pEvt = Q_NEW(QEvt, ERROR_SIG);
+    QACTIVE_POST((QActive *)me, pEvt, me);
+}</action>
+        <tran_glyph conn="27,120,3,-1,16">
+         <action box="0,-2,13,2"/>
+        </tran_glyph>
+       </tran>
+       <state_glyph color="2" node="27,103,50,23">
+        <entry box="0,3,6,2"/>
+        <exit box="0,5,6,2"/>
+       </state_glyph>
+      </state>
+      <state_glyph color="1" node="19,57,65,74">
+       <entry box="0,3,6,2"/>
+      </state_glyph>
+     </state>
+     <state name="USB_MSC_MODE">
+      <entry>me-&gt;tick = 0U;</entry>
+      <tran trig="LOGGER_TICK">
+       <action>me-&gt;tick += CONFIG_LOGGER_TICK_INTERVAL_MS;</action>
+       <choice target="../../../7/1">
+        <guard brief="usb_disconnect">tud_suspended()</guard>
+        <choice_glyph conn="35,150,5,1,57,-40,-15">
+         <action box="1,-2,14,2"/>
+        </choice_glyph>
+       </choice>
+       <choice>
+        <guard>else</guard>
+        <choice_glyph conn="35,150,4,-1,3,8">
+         <action box="1,1,7,2"/>
+        </choice_glyph>
+       </choice>
+       <tran_glyph conn="19,150,3,-1,16">
+        <action box="0,-2,14,2"/>
+       </tran_glyph>
+      </tran>
+      <state_glyph color="1" node="19,139,65,20">
+       <entry box="0,3,6,2"/>
+      </state_glyph>
+     </state>
+     <state name="ERROR">
+      <state_glyph color="1" node="30,169,47,8"/>
+     </state>
+     <state_glyph node="15,20,83,163">
+      <entry box="0,3,6,2"/>
+     </state_glyph>
+    </state>
+    <state_diagram size="114,189"/>
+   </statechart>
+  </class>
+  <attribute name="AO_logger" type="QActive * const" visibility="0x00" properties="0x00">
+   <code>= &amp;(l_logger.super);</code>
+  </attribute>
+  <operation name="LOGGER_ctor" type="bool" visibility="0x00" properties="0x00">
+   <code>static bool bInit = false;
+static const int8_t taskName[] = &quot;LOGGER&quot;;
+
+if(bInit == true) {
+    return true;
+}
+
+logger * const me = &amp;l_logger;
+
+/* Call constructor */
+QActive_ctor(&amp;me-&gt;super, Q_STATE_CAST(&amp;logger_initial));
+me-&gt;sdcard = sdcard_ctor((QActive *)me);
+
+/* Create AO task */
+QActive_setAttr(AO_logger, TASK_NAME_ATTR, taskName);
+QACTIVE_START(
+        AO_logger,
+        CONFIG_LOGGER_AO_PRIO,
+        l_loggerQSto,
+        Q_DIM(l_loggerQSto),
+        loggerStack,
+        sizeof(loggerStack),
+        (QEvt *)0
+        );
+bInit = true;
+
+return true;</code>
+  </operation>
+  <operation name="can_one_rx_callback" type="void" visibility="0x02" properties="0x00">
+   <parameter name="obj" type="void *"/>
+   <parameter name="pPacket" type="CAN_RX_T *"/>
+   <code>if((obj != NULL) &amp;&amp; (pPacket != NULL)) {
+    logger * const me = (logger *)obj;
+    const uint8_t channel = 0; // CAN1
+    const bool isTx = false; // receive
+    const bool isCanFd = (pPacket-&gt;header.FDFormat == FDCAN_FD_CAN) ? true : false;
+    const uint32_t msgId = pPacket-&gt;header.Identifier;
+    const uint8_t dlc = DLC_TO_BYTES[pPacket-&gt;header.DataLength];
+
+    WriteLogEvt * pEvt = Q_NEW(WriteLogEvt, CAN_RECEIVE_SIG);
+    pEvt-&gt;bufLen = FRAME_format_can(channel, isTx, isCanFd,
+                       pEvt-&gt;buff, MAX_FRAME_LEN, msgId, dlc,
+                       pPacket-&gt;data);
+    QACTIVE_POST((QActive *)me, (QEvt *)pEvt, me);
+}</code>
+  </operation>
+  <directory name="inc">
+   <file name="logger.h">
+    <text>#ifndef LOGGER_H
+#define LOGGER_H
+
+#include &quot;qpc.h&quot;
+#include &quot;logger_frame.h&quot;
+#include &quot;bsp_can.h&quot;
+
+$declare(logger::event::WriteLogEvt)
+
+$declare(logger::AO_logger)
+
+$declare(logger::LOGGER_ctor)
+
+#endif /* LOGGER_H */
+</text>
+   </file>
+  </directory>
+  <directory name="src">
+   <file name="logger.c">
+    <text>#include &quot;qpc.h&quot;
+#include &quot;appPubList.h&quot;
+#include &quot;sdcard.h&quot;
+#include &quot;tusb.h&quot;
+#include &quot;ff.h&quot;
+#include &quot;../inc/logger.h&quot;
+#include &quot;../inc/logger_frame.h&quot;
+#include &quot;fatfs_sd.h&quot;
+
+Q_DEFINE_THIS_MODULE(&quot;logger.c&quot;)
+
+#define CONFIG_LOGGER_AO_PRIO              (2)
+#define CONFIG_LOGGER_AO_EVENT_QUEUE_LEN   (10)
+#define CONFIG_LOGGER_AO_STACK             (512)
+#define CONFIG_LOGGER_TICK_INTERVAL_MS     (10)
+#define CONFIG_SDCARD_TICK_INTERVAL_MS     (10)
+
+#define INDEX_FILE_PATH                    &quot;logs/index.bin&quot;
+
+enum loggerSignal {
+    LOGGER_TICK_SIG = MAX_PUB_SIG,
+    SDCARD_TICK_SIG,
+    CREATE_LOGFILE_SIG,
+    START_LOGGING_SIG,
+    CAN_RECEIVE_SIG,
+    ERROR_SIG,
+};
+
+enum loggerTraceRecord {
+    LOGGER_DEBUG_RECORD = QS_USER,
+};
+
+const uint8_t DLC_TO_BYTES[16] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 12,
+                    16, 20, 24, 32, 48, 64};
+
+$declare(logger::sdcard::sdcard)
+$declare(logger::logger)
+
+/*
+ * Local object
+ */
+static sdcard l_sdcard;
+static logger l_logger;
+static QEvt const * l_loggerQSto[CONFIG_LOGGER_AO_EVENT_QUEUE_LEN];
+static StackType_t loggerStack[CONFIG_LOGGER_AO_STACK];
+
+$define(logger::AO_logger)
+
+$define(logger::can_one_rx_callback)
+
+$define(logger::sdcard::sdcard_ctor)
+$define(logger::LOGGER_ctor)
+
+$define(logger::sdcard::sdcard)
+$define(logger::logger)
+</text>
+   </file>
+  </directory>
+ </package>
+ <directory name=".">
+  <file name="appPubList.h">
+   <text>#ifndef APP_PUB_LIST_H
+#define APP_PUB_LIST_H
+
+enum PublicSignals {
+    /* Common Event across AO */
+    GET_OBJECT_DICTIONARY_SIG = Q_USER_SIG,
+    GET_FUNC_DICTIONARY_SIG,
+    GET_SIGNAL_DICTIONARY_SIG,
+
+    /* Published Events */
+
+
+    MAX_PUB_SIG    /* Last Published Signal.  This is also the start of AO specific signals */
+};
+
+#endif /* APP_PUB_LIST_H */
+</text>
+  </file>
+ </directory>
+</model>

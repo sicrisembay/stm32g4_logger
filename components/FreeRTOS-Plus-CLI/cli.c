@@ -24,7 +24,7 @@
 #define CLI_COMMAND_MAX_OUTPUT_SIZE     (256)
 
 #define CONFIG_CLI_STREAM_TO_USB_CDC    (1)
-#define CONFIG_CLI_STREAM_TO_UART       (1)
+#define CONFIG_CLI_STREAM_TO_UART       (0)
 #define DEFAULT_BLOCK_WAIT_MS           (10)
 #define PRINTF_BUFFER_SIZE              (512)
 

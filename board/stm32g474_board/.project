@@ -65,6 +65,11 @@
 			<locationURI>PARENT-2-PROJECT_LOC/components/filesystem/littlefs</locationURI>
 		</link>
 		<link>
+			<name>components/qpc</name>
+			<type>2</type>
+			<locationURI>virtual:/virtual</locationURI>
+		</link>
+		<link>
 			<name>components/stm32g4xx_hal_driver</name>
 			<type>2</type>
 			<locationURI>PARENT-2-PROJECT_LOC/components/stm32g4xx_hal_driver</locationURI>
@@ -76,6 +81,21 @@
 		</link>
 		<link>
 			<name>components/filesystem/FatFs</name>
+			<type>2</type>
+			<locationURI>virtual:/virtual</locationURI>
+		</link>
+		<link>
+			<name>components/qpc/include</name>
+			<type>2</type>
+			<locationURI>$%7BPARENT-2-PROJECT_LOC%7D/components/qpc/include</locationURI>
+		</link>
+		<link>
+			<name>components/qpc/ports</name>
+			<type>2</type>
+			<locationURI>virtual:/virtual</locationURI>
+		</link>
+		<link>
+			<name>components/qpc/src</name>
 			<type>2</type>
 			<locationURI>virtual:/virtual</locationURI>
 		</link>
@@ -100,6 +120,11 @@
 			<locationURI>$%7BPARENT-2-PROJECT_LOC%7D/components/filesystem/FatFs/source/ff.h</locationURI>
 		</link>
 		<link>
+			<name>components/filesystem/FatFs/ffconf.h</name>
+			<type>1</type>
+			<locationURI>$%7BPARENT-2-PROJECT_LOC%7D/components/filesystem/FatFs/source/ffconf.h</locationURI>
+		</link>
+		<link>
 			<name>components/filesystem/FatFs/ffsystem.c</name>
 			<type>1</type>
 			<locationURI>$%7BPARENT-2-PROJECT_LOC%7D/components/filesystem/FatFs/source/ffsystem.c</locationURI>
@@ -108,6 +133,26 @@
 			<name>components/filesystem/FatFs/ffunicode.c</name>
 			<type>1</type>
 			<locationURI>$%7BPARENT-2-PROJECT_LOC%7D/components/filesystem/FatFs/source/ffunicode.c</locationURI>
+		</link>
+		<link>
+			<name>components/qpc/ports/config</name>
+			<type>2</type>
+			<locationURI>$%7BPARENT-2-PROJECT_LOC%7D/components/qpc/ports/config</locationURI>
+		</link>
+		<link>
+			<name>components/qpc/ports/freertos</name>
+			<type>2</type>
+			<locationURI>$%7BPARENT-2-PROJECT_LOC%7D/components/qpc/ports/freertos</locationURI>
+		</link>
+		<link>
+			<name>components/qpc/src/qf</name>
+			<type>2</type>
+			<locationURI>$%7BPARENT-2-PROJECT_LOC%7D/components/qpc/src/qf</locationURI>
+		</link>
+		<link>
+			<name>components/qpc/src/qs</name>
+			<type>2</type>
+			<locationURI>$%7BPARENT-2-PROJECT_LOC%7D/components/qpc/src/qs</locationURI>
 		</link>
 	</linkedResources>
 </projectDescription>

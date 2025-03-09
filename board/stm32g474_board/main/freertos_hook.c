@@ -29,6 +29,15 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "common/tusb_common.h"
+#include "qpc.h"
+
+void vApplicationTickHook( void )
+{
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    /* Process time events for rate 0 */
+    QF_TICK_FROM_ISR(&xHigherPriorityTaskWoken, (void *)&vApplicationTickHook);
+    portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
+}
 
 
 void vApplicationMallocFailedHook(void)
@@ -36,6 +45,7 @@ void vApplicationMallocFailedHook(void)
   taskDISABLE_INTERRUPTS();
   TU_ASSERT(false, );
 }
+
 
 void vApplicationStackOverflowHook(xTaskHandle pxTask, char *pcTaskName)
 {

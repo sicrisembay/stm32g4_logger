@@ -175,4 +175,6 @@ int board_getchar(void);
 }
 #endif
 
+uint32_t HighResTimer_get_tick(void);
+
 #endif

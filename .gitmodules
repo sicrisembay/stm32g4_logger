@@ -17,3 +17,6 @@
 	path = components/filesystem/littlefs
 	url = https://github.com/littlefs-project/littlefs.git
 	branch = master
+[submodule "components/qpc"]
+	path = components/qpc
+	url = https://github.com/QuantumLeaps/qpc.git

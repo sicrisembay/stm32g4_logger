@@ -15,6 +15,7 @@
 #include "logger_conf.h"
 #include "stm32g4xx_hal_fdcan.h"
 #include "stdbool.h"
+#include "cli.h"
 
 #define TAG_CAN "can"
 #define CAN_LOG_DEBUG(x, ...)   (CONFIG_CAN_LOG_LEVEL <= CONFIG_LOG_LEVEL_DEBUG) ? CLI_printf("D (%d) " TAG_CAN ": " x, xTaskGetTickCount(), ##__VA_ARGS__) : (void)0
@@ -69,6 +70,9 @@ bool BSP_CAN_configure(const CAN_ID_T id,
                        const DATA_BITRATE_T data_bps);
 bool BSP_CAN_is_enabled(const CAN_ID_T id);
 bool BSP_CAN_start(const CAN_ID_T id);
+bool BSP_CAN_register_cb(const CAN_ID_T id,
+                         void * obj,
+                         void (*cb)(void * obj, CAN_RX_T * packet));
 bool BSP_CAN_stop(const CAN_ID_T id);
 bool BSP_CAN_send(const CAN_ID_T id, CAN_TX_T * pElem);
 

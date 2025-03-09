@@ -16,8 +16,8 @@
 #include "cli.h"
 #include "test_usb_msc.h"
 
-#define USB_DEVICE_STACK_SIZE           (384)
-#define USB_CLASS_STACK_SIZE            (256)
+#define USB_DEVICE_STACK_SIZE           (1024)
+#define USB_CLASS_STACK_SIZE            (1024)
 #define EVENT_CDC_AVAILABLE_BIT         (0x00000001)
 #define EVENT_CDC_TRANSMIT_REQ_BIT      (0x00000002)
 #define EVENT_CDC_TRANSMIT_DONE_BIT     (0x00000004)
@@ -83,7 +83,7 @@ void usb_device_init(void)
                             "usb-device",
                             USB_DEVICE_STACK_SIZE,
                             NULL,
-                            configMAX_PRIORITIES - 1,
+                            2, //configMAX_PRIORITIES - 1,
                             usb_device_stack,
                             &usb_device_taskdef
                             );
@@ -92,7 +92,7 @@ void usb_device_init(void)
                             "usb-class",
                             USB_CLASS_STACK_SIZE,
                             NULL,
-                            configMAX_PRIORITIES - 1,
+                            2, //configMAX_PRIORITIES - 1,
                             usb_class_stack,
                             &usb_class_taskdef
                             );

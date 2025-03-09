@@ -18,6 +18,7 @@
 typedef struct {
     FATFS fs;
     FIL file;
+    uint32_t file_open_counter;
     DIR dir;
     FILINFO fno;
     TCHAR volume_label[34];
@@ -72,50 +73,6 @@ FRESULT fatfs_sd_mount(void)
     return result;
 }
 
-
-FRESULT fatfs_sd_ls(const char * path, char *outBuffer, size_t bufferLen)
-{
-    FRESULT res;
-    fatfs_sd_t * const me = &fatfs_sd;
-    size_t remaining;
-
-    res = f_opendir(&me->dir, path);
-    if(res != FR_OK) {
-        return res;
-    }
-
-    while (1) {
-        res = f_readdir(&me->dir, &me->fno);
-        if (res != FR_OK || me->fno.fname[0] == 0) {
-            break;  // Break on error or end of dir
-        }
-
-        remaining = bufferLen - strlen(outBuffer);
-        if(remaining <= 4) {
-            break;
-        }
-        if (me->fno.fattrib & AM_DIR) {
-            outBuffer = strncat(outBuffer, "--d ", remaining);
-        } else {
-            outBuffer = strncat(outBuffer, "--- ", remaining);
-        }
-
-        remaining = bufferLen - strlen(outBuffer);
-        if(remaining <= strlen(me->fno.fname)) {
-            break;
-        }
-        strncat(outBuffer, me->fno.fname, remaining);
-
-        remaining = bufferLen - strlen(outBuffer);
-        if(remaining <= 2) {
-            break;
-        }
-        strncat(outBuffer, "\r\n", remaining);
-    }
-    f_closedir(&me->dir);  // Close the directory
-
-    return res;
-}
 
 #endif /* CONFIG_USE_FATFS_SD */
 

@@ -13,10 +13,28 @@ menu "FatFS"
                 bool "fatfs_mount"
                 default y
             config FATFS_CMD_INFO
+                depends on FATFS_CMD_MOUNT
                 bool "fatfs_info"
                 default y
             config FATFS_CMD_LS
+                depends on FATFS_CMD_MOUNT
                 bool "fatfs_ls"
+                default y
+            config FATFS_CMD_FOPEN
+                depends on FATFS_CMD_MOUNT
+                bool "fatfs_fopen"
+                default y
+            config FATFS_CMD_FCLOSE
+                depends on FATFS_CMD_FOPEN
+                bool "fatfs_fclose"
+                default y
+            config FATFS_CMD_FREAD
+                depends on FATFS_CMD_FOPEN
+                bool "fatfs_fread"
+                default y
+            config FATFS_CMD_FWRITE
+                depends on FATFS_CMD_FOPEN
+                bool "fatfs_fwrite"
                 default y
         endif # TEST_FATFS_SD
 endmenu

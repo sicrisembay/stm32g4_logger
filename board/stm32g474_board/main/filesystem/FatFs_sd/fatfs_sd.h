@@ -21,7 +21,6 @@ FATFS * fatfs_get_instance(void);
 TCHAR * fatfs_get_volume_label(void);
 DWORD fatfs_get_volume_serial_number(void);
 FRESULT fatfs_sd_mount(void);
-FRESULT fatfs_sd_ls(const char * path, char *outBuffer, size_t bufferLen);
 
 #endif /* CONFIG_USE_FATFS_SD */
 #endif /* FATFS_SD_H_ */

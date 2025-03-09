@@ -39,6 +39,7 @@
 
 int32_t SDCARD_Init(void);
 bool SDCARD_InitDone(void);
+bool SDCARD_is_present(void);
 bool SDCARD_ready(void);
 int32_t SDCARD_GetBlocksNumber(uint32_t * num);
 int32_t SDCARD_ReadOCR(uint32_t * pOCR);

@@ -17,6 +17,7 @@
 #include "test_sdcard.h"
 #include "bsp/spi/bsp_spi.h"
 #include "bsp/lpuart.h"
+#include "cli.h"
 
 #if CONFIG_USE_SDCARD
 
@@ -43,6 +44,7 @@ static StaticSemaphore_t semStruct;
 static uint8_t block_data[SDCARD_BLOCK_SIZE];
 
 typedef struct {
+    bool initIoOnce;
     bool card_info_available;
     uint8_t csd_version;
     uint32_t max_block_count;   // number of 512-byte block
@@ -55,19 +57,23 @@ static uint8_t CRCTable[256];
 
 static void GenerateCRCTable()
 {
+    static bool bGenerateOnce = false;
     int i;
     int j;
     uint8_t CRCPoly = 0x89;  // the value of our CRC-7 polynomial
 
-    // generate a table value for all 256 possible byte values
-    for (i = 0; i < 256; ++i) {
-        CRCTable[i] = (i & 0x80) ? i ^ CRCPoly : i;
-        for (j = 1; j < 8; ++j) {
-            CRCTable[i] <<= 1;
-            if (CRCTable[i] & 0x80) {
-                CRCTable[i] ^= CRCPoly;
+    if(bGenerateOnce != true) {
+        // generate a table value for all 256 possible byte values
+        for (i = 0; i < 256; ++i) {
+            CRCTable[i] = (i & 0x80) ? i ^ CRCPoly : i;
+            for (j = 1; j < 8; ++j) {
+                CRCTable[i] <<= 1;
+                if (CRCTable[i] & 0x80) {
+                    CRCTable[i] ^= CRCPoly;
+                }
             }
         }
+        bGenerateOnce = true;
     }
 }
 
@@ -330,51 +336,30 @@ static int32_t SDCARD_SendCMD0(void)
 }
 
 
-int32_t SDCARD_Init(void)
+void SDCARD_io_init(void)
 {
-    int32_t ret = SPI_ERR_NONE;
-    int32_t status;
-    int8_t r1;
-    uint8_t retry;
-
-    GenerateCRCTable();
-
-    /*
-     * Note: This must be only called after scheduler has started.
-     */
-    configASSERT(taskSCHEDULER_NOT_STARTED != xTaskGetSchedulerState());
-
-    TEST_SDCARD_Init();
-
     LL_GPIO_InitTypeDef GPIO_InitStruct = {0};
 
-    if((bInit == true) && (sdcard.card_info_available == true)) {
-        return SDCARD_ERR_NONE;
+    if(sdcard.initIoOnce) {
+        return;
     }
-
     LL_AHB2_GRP1_EnableClock(LL_AHB2_GRP1_PERIPH_GPIOA);
     LL_AHB2_GRP1_EnableClock(LL_AHB2_GRP1_PERIPH_GPIOC);
 
 #if CONFIG_SDCARD_HAS_POWER_SWITCH
-    static bool initPSonce = false;
-    if(initPSonce != true) {
-        initPSonce = true;
-        /*
-         * Power Switch
-         * Default: ON
-         */
-        LL_GPIO_SetOutputPin(SD_POWER_SWITCH_Port, SD_POWER_SWITCH_Pin);
-        LL_GPIO_StructInit(&GPIO_InitStruct);
-        GPIO_InitStruct.Pin = SD_POWER_SWITCH_Pin;
-        GPIO_InitStruct.Mode = LL_GPIO_MODE_OUTPUT;
-        GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_LOW;
-        GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
-        GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
-        LL_GPIO_Init(SD_POWER_SWITCH_Port, &GPIO_InitStruct);
-    }
+    /*
+     * Power Switch
+     * Default: ON
+     */
+    LL_GPIO_SetOutputPin(SD_POWER_SWITCH_Port, SD_POWER_SWITCH_Pin);
+    LL_GPIO_StructInit(&GPIO_InitStruct);
+    GPIO_InitStruct.Pin = SD_POWER_SWITCH_Pin;
+    GPIO_InitStruct.Mode = LL_GPIO_MODE_OUTPUT;
+    GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_LOW;
+    GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
+    GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
+    LL_GPIO_Init(SD_POWER_SWITCH_Port, &GPIO_InitStruct);
 #endif /* CONFIG_SDCARD_HAS_POWER_SWITCH */
-
-    BSP_SPI_init();
 
     /*
      * SD Card SPI CS
@@ -397,36 +382,48 @@ int32_t SDCARD_Init(void)
     GPIO_InitStruct.Mode = LL_GPIO_MODE_INPUT;
     GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
     LL_GPIO_Init(SD_DETECT_Port, &GPIO_InitStruct);
-    retry = 0;
-    while(1) {
-#if CONFIG_SDCARD_DETECT_ACTIVE_HIGH
-        if((LL_GPIO_ReadInputPort(SD_DETECT_Port) & SD_DETECT_Pin) != 0) {
-#else
-        if((LL_GPIO_ReadInputPort(SD_DETECT_Port) & SD_DETECT_Pin) == 0) {
-#endif
-            retry++;
-            vTaskDelay(10);
-            if(retry >= 10) {
-                /* Card not detected.  Hot plug is not supported yet */
-                SD_PRINTF("SD Card not detected!\r\n");
-#if CONFIG_SDCARD_HAS_POWER_SWITCH
-                /* Switch OFF */
-                SD_SetPowerState(false);
-#endif /* CONFIG_SDCARD_HAS_POWER_SWITCH */
-
-                return SDCARD_ERR_NOT_PRESENT;
-            }
-        } else {
-            break;
-        }
-    }
 #endif /* CONFIG_SDCARD_HAS_DETECT_PIN */
+
+    sdcard.initIoOnce = true;
+}
+
+
+int32_t SDCARD_Init(void)
+{
+    int32_t ret = SPI_ERR_NONE;
+    int32_t status;
+    int8_t r1;
+
+    GenerateCRCTable();
+
+    /*
+     * Note: This must be only called after scheduler has started.
+     */
+    configASSERT(taskSCHEDULER_NOT_STARTED != xTaskGetSchedulerState());
+
+    SDCARD_io_init();
+
+    TEST_SDCARD_Init();
+
+    if((bInit == true) && (sdcard.card_info_available == true)) {
+        return SDCARD_ERR_NONE;
+    }
+
+
+    BSP_SPI_init();
+
+    if(SDCARD_is_present() == false) {
+        SD_PRINTF("SD Card not detected!\r\n");
+        return SDCARD_ERR_NOT_PRESENT;
+    }
 
     /*
      * Semaphore for synchronization
      */
-    semHandle = xSemaphoreCreateBinaryStatic(&semStruct);
-    configASSERT(NULL != semHandle);
+    if(semHandle == NULL) {
+        semHandle = xSemaphoreCreateBinaryStatic(&semStruct);
+        configASSERT(NULL != semHandle);
+    }
     /*
      * Step 0.
      *   Add delay to make sure the 3.3V has stabilized
@@ -440,7 +437,7 @@ int32_t SDCARD_Init(void)
     */
     SD_ChipSelect(false);  // CS unselect
     {
-#if 0
+#if 1
         // 96 clock pulses
         uint8_t dummy[12] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
                 0xFF, 0xFF, 0xFF, 0xFF};
@@ -780,6 +777,20 @@ int32_t SDCARD_Init(void)
 bool SDCARD_InitDone(void)
 {
     return bInit;
+}
+
+
+bool SDCARD_is_present(void)
+{
+#if CONFIG_SDCARD_HAS_POWER_SWITCH
+#if CONFIG_SDCARD_DETECT_ACTIVE_HIGH
+    return ((LL_GPIO_ReadInputPort(SD_DETECT_Port) & SD_DETECT_Pin) != 0);
+#else
+    return ((LL_GPIO_ReadInputPort(SD_DETECT_Port) & SD_DETECT_Pin) == 0);
+#endif /* CONFIG_SDCARD_DETECT_ACTIVE_HIGH */
+#else
+    return true;
+#endif /* CONFIG_SDCARD_HAS_POWER_SWITCH */
 }
 
 

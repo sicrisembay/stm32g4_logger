@@ -81,6 +81,10 @@ int32_t tud_msc_read10_cb(uint8_t lun, uint32_t lba, uint32_t offset, void* buff
 {
     (void) lun;
 
+    if(isEjected || !SDCARD_ready()) {
+        return -1;
+    }
+
     if((bufsize != SDCARD_BLOCK_SIZE) || (offset != 0)) {
         return -1;
     }
@@ -95,6 +99,10 @@ int32_t tud_msc_read10_cb(uint8_t lun, uint32_t lba, uint32_t offset, void* buff
 int32_t tud_msc_write10_cb(uint8_t lun, uint32_t lba, uint32_t offset, uint8_t* buffer, uint32_t bufsize)
 {
     (void) lun;
+
+    if(isEjected || !SDCARD_ready()) {
+        return -1;
+    }
 
     if((bufsize != SDCARD_BLOCK_SIZE) || (offset != 0)) {
         return -1;

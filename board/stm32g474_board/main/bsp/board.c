@@ -9,6 +9,7 @@
 #include "can/bsp_can.h"
 
 static PCD_HandleTypeDef hpcd_USB_FS;
+static TIM_HandleTypeDef htim;
 
 void HAL_MspInit(void)
 {
@@ -155,6 +156,20 @@ void HAL_PCD_MspInit(PCD_HandleTypeDef* hpcd)
 }
 
 
+static void TIMER_init(void)
+{
+    __HAL_RCC_TIM2_CLK_ENABLE();
+
+    htim.Instance = TIM2;
+    htim.Init.Prescaler = 16;   // 10us resolution
+    htim.Init.CounterMode = TIM_COUNTERMODE_UP;
+    htim.Init.Period = 0xFFFFFFFF;
+    htim.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+    htim.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+    HAL_TIM_Base_Init(&htim);
+    HAL_TIM_Base_Start(&htim);
+}
+
 void board_init()
 {
     HAL_Init();
@@ -165,6 +180,7 @@ void board_init()
     BSP_SPI_init();
     MX_USB_PCD_Init();
     BSP_CAN_init();
+    TIMER_init();
 
     TEST_BOARD_Init();
 
@@ -184,4 +200,10 @@ void board_led_write(bool isOn)
         HAL_GPIO_WritePin(GREEN_LED_Port, GREEN_LED_Pin, GPIO_PIN_SET);
     }
 
+}
+
+
+uint32_t HighResTimer_get_tick(void)
+{
+    return __HAL_TIM_GET_COUNTER(&htim);
 }

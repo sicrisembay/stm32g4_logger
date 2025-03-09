@@ -13,6 +13,7 @@
 #include "usb_device.h"
 #include "cli.h"
 #include "filesystem/FatFs_sd/test_fatfs_sd.h"
+#include "inc/logger.h"
 
 #define MAIN_TASK_STACK_SIZE        (512)
 #define MAIN_TASK_PRIORITY          (1)
@@ -25,6 +26,11 @@ static void mainTask(void * pvParam)
     TickType_t xLastWakeTime;
 
     CLI_init();
+
+    extern void QPC_start(void);
+    QPC_start();
+
+    LOGGER_ctor();
     vTaskDelay(100);
 #if CONFIG_USE_SDCARD
     uint32_t retry = 0;

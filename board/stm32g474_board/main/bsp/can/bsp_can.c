@@ -7,6 +7,7 @@
 
 #include "logger_conf.h"
 #include "stdbool.h"
+#include "stddef.h"
 #include "FreeRTOS.h"
 #include "task.h"
 #include "queue.h"
@@ -58,6 +59,8 @@ typedef struct {
     QueueHandle_t rxQueueHandle;
     StaticQueue_t rxQueueStruct;
     uint32_t debugRxCount;
+    void * rx_cb_object;
+    void (* rx_cb_func)(void * obj, CAN_RX_T * pRxPacket);
     bool txInProgress;
     bool isEnabled;
 } CAN_T;
@@ -67,9 +70,6 @@ static CAN_T can[N_CAN_ID];
 static StackType_t canTaskStack[N_CAN_ID][CONFIG_CAN_TASK_STACK_SIZE];
 static uint8_t txQueueSto[N_CAN_ID][CONFIG_CAN_TX_Q_LEN * CONFIG_CAN_TX_ELEM_SIZE];
 static uint8_t rxQueueSto[N_CAN_ID][CONFIG_CAN_RX_Q_LEN * CONFIG_CAN_RX_ELEM_SIZE];
-
-static const uint32_t DLC_TO_BYTES[16] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 12,
-                    16, 20, 24, 32, 48, 64};
 
 /*
  *
@@ -245,21 +245,9 @@ static void can_task(void * pvParam)
                 while(pdTRUE == xQueueReceive(me->rxQueueHandle,
                         &rxElem, 0)) {
                     me->debugRxCount++;
-                    /*
-                     * [0]     : tag (0xFF)
-                     * [1..2]  : length
-                     * [3..6]  : timestamp offset
-                     * [7..10] : SEQ number
-                     * [11]    : packet type
-                     *             0x00: Start Time in Ticks
-                     *             0x01: Tx CAN standard
-                     *             0x02: Rx CAN standard
-                     *             0x03: Tx CAN-FD
-                     *             0x04: Rx CAN-FD
-                     * [12..N] : payload
-                     * [N]     : checksum8
-                     */
-                    /// TODO: Write to SD card
+                    if(me->rx_cb_func != NULL) {
+                        me->rx_cb_func(me->rx_cb_object, &rxElem);
+                    }
                 }
             }
         }
@@ -518,6 +506,21 @@ bool BSP_CAN_start(const CAN_ID_T id)
 
     CAN_LOG_INFO("CAN%d enabled\r\n", (id + 1));
 
+    return true;
+}
+
+
+bool BSP_CAN_register_cb(const CAN_ID_T id,
+                         void * obj,
+                         void (*cb)(void * obj, CAN_RX_T * packet))
+{
+    if(id >= N_CAN_ID) {
+        return false;
+    }
+
+    CAN_T * const me = &(can[id]);
+    me->rx_cb_object = obj;
+    me->rx_cb_func = cb;
     return true;
 }
 
